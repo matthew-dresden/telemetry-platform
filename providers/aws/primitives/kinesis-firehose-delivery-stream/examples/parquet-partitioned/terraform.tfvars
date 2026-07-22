@@ -1,0 +1,3 @@
+stream_name      = "telemetry-pp-firehose"
+project_tag      = "telemetry-platform"
+terratest_run_id = "offline-validate"

@@ -1,0 +1,47 @@
+name: Terratest Sweep
+# Daily scheduled orphan-resource sweep + on-demand dispatch.
+# Targets QA only -- sandbox sweeps locally and prod/root are NEVER swept (D-14).
+on:
+  schedule:
+    - cron: 0 6 * * *
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  id-token: write
+# Destructive-sweep lane: two sweeps must never run at once -- each performs an
+# account-wide delete of orphaned terratest resources, and concurrent global
+# deletes race each other (DependencyViolation / *.NotFound). cancel-in-progress:
+# false so a running sweep is never cut off mid-delete; the default queue: single
+# is correct here because the sweep is idempotent -- a superseded PENDING sweep is
+# harmless (the next run performs the same account-wide delete). This group is
+# sweep-only and never shares with any release / deploy / PR lane.
+concurrency:
+  group: terratest-sweep
+  cancel-in-progress: false
+jobs:
+  terratest-sweep:
+    name: terratest-sweep
+    runs-on: ubuntu-latest
+    # No environment gate: this is an unattended daily cleanup job, not a deploy. The
+    # terratest-approval environment exists to gate PR terratest runs (which apply real
+    # infra) behind a human reviewer; a scheduled orphan-resource sweep must run on its
+    # own without waiting for manual approval, otherwise every scheduled run sits in the
+    # pending_deployment queue forever. The QA sweep role (telemetry-platform-gha-terratest)
+    # trusts repo:example-org/telemetry-platform:* (wildcard sub, not environment-gated),
+    # so OIDC assume-role still succeeds without the environment binding.
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+      - uses: ./.github/actions/setup-tools
+      - name: Configure AWS credentials (QA OIDC -- sweep role)
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df  # v4.4.0
+        with:
+          role-to-assume: ${{ vars.AWS_QA_TERRATEST_ROLE_ARN }}
+          role-session-name: gha-sweep-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_DEFAULT_REGION }}
+          audience: sts.amazonaws.com
+      - name: Delete orphaned terratest resources
+        shell: bash
+        run: make terratest-sweep SWEEP_MODE=delete
+      - name: Check for residual orphaned resources (fail on any residue)
+        shell: bash
+        run: make terratest-sweep SWEEP_MODE=check

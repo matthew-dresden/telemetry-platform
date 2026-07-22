@@ -1,0 +1,36 @@
+{
+  "111111111111": {
+    "account_role": "prod-infra",
+    "aws_profile": "prod",
+    "ci_deploy": true,
+    "deploy_role_name": "telemetry-platform-gha-tg-apply",
+    "plan_role_name": "telemetry-platform-gha-tg-plan",
+    "is_dns_owner": false
+  },
+  "222222222222": {
+    "account_role": "sandbox",
+    "aws_profile": "sandbox",
+    "ci_deploy": false,
+    "ci_deploy_on_demand": true,
+    "deploy_role_name": "telemetry-platform-gha-tg-apply",
+    "plan_role_name": "telemetry-platform-gha-tg-plan",
+    "is_dns_owner": false
+  },
+  "333333333333": {
+    "account_role": "qa-infra",
+    "aws_profile": "qa",
+    "ci_deploy": true,
+    "deploy_role_name": "telemetry-platform-gha-terratest",
+    "plan_role_name": "telemetry-platform-gha-terratest",
+    "is_dns_owner": false
+  },
+  "444444444444": {
+    "account_role": "dns-owner",
+    "aws_profile": "root",
+    "ci_deploy": true,
+    "deploy_role_name": "telemetry-platform-dns-writer",
+    "plan_role_name": "telemetry-platform-gha-tg-plan",
+    "dns_owner_zone_id": "<REAL_Z_ID>",
+    "is_dns_owner": true
+  }
+}

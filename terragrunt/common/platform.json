@@ -1,0 +1,8 @@
+{
+  "_comment": "Vendor-neutral platform identity -- the ONE file that carries your GitHub org/repo, product name, primary region, and module host. Every pinned in-repo module source (git::https://<host>/<org>/<repo>.git//...), the Go module path, the IAM deploy-role prefix, and the OIDC subject claims derive from these values. A fork sets these once and the whole tree follows. 'product' is also derivable from the live-tree folder name (terragrunt/live/<product>/...) -- keep them in sync when you rebrand.",
+  "org": "example-org",
+  "repo": "telemetry-platform",
+  "product": "telemetry",
+  "primary_region": "us-east-1",
+  "module_source_host": "github.com"
+}

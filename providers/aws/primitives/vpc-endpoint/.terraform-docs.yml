@@ -1,0 +1,106 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # vpc-endpoint
+
+  Manages a set of VPC endpoints (Interface, Gateway, and GatewayLoadBalancer types) within a VPC. This is a NEW-LOCAL primitive (decision D6) because the upstream `vpc` shell does not create VPC endpoint resources.
+
+  ## Resources managed
+
+  - `aws_vpc_endpoint` -- one per entry in the `endpoints` input list
+
+  ## Usage
+
+  ```hcl
+  module "vpc_endpoint" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/vpc-endpoint?ref=providers/aws/primitives/vpc-endpoint/v0.1.0"
+
+    vpc_id = module.vpc.vpc_id
+    endpoints = [
+      {
+        name               = "ssm"
+        service_name       = "com.amazonaws.us-east-1.ssm"
+        vpc_endpoint_type  = "Interface"
+        subnet_ids         = module.subnet.subnet_ids_list
+        security_group_ids = [module.sg.id]
+        private_dns_enabled = true
+      },
+      {
+        name              = "s3"
+        service_name      = "com.amazonaws.us-east-1.s3"
+        vpc_endpoint_type = "Gateway"
+        route_table_ids   = module.route_table.route_table_ids_list
+      },
+    ]
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/interface` -- 1 Interface endpoint (SSM) with a fixture VPC, private subnet, and security group
+  - `examples/gateway` -- 1 Gateway endpoint (S3) with a fixture VPC and private route table
+
+  ## Running tests
+
+  ```bash
+  AWS_PROFILE=sandbox make tf-test MODULE_PATH=providers/aws/primitives/vpc-endpoint
+  ```
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `vpc_id` must match `^vpc-`. Plans fail if the pattern is not satisfied.
+  - `endpoints` must be non-empty. Plans fail with an empty list.
+  - Every `vpc_endpoint_type` must be one of `"Interface"`, `"Gateway"`, or `"GatewayLoadBalancer"`. Plans fail on any other value.
+  - `Interface` endpoints require at least one entry in `subnet_ids`. Plans fail if `subnet_ids` is empty for Interface type.
+  - `Gateway` endpoints require at least one entry in `route_table_ids`. Plans fail if `route_table_ids` is empty for Gateway type.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

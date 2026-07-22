@@ -1,0 +1,103 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # vpc
+
+  Creates and manages an AWS Virtual Private Cloud (VPC) shell with DNS configuration,
+  default security group management, optional DHCP options, and optional VPC Flow Logs.
+
+  This primitive is vendored in-repo (it was previously consumed from the external
+  `caylent-solutions/terraform-modules` monorepo). It is vendored here so the
+  `vpc-network` and `collector-ingestion` reference modules can resolve the `aws`
+  provider against the repo-wide `>= 6.49.0` floor required by the sibling networking
+  primitives (subnet, nat-gateway, route-table, vpc-endpoint). The upstream
+  `v1.0.0` release pinned `aws ~> 6.0.0`, which produced an empty provider
+  intersection with that floor.
+
+  ## Resources managed
+
+  - `aws_vpc.vpc` -- the VPC itself
+  - `aws_default_security_group.this` -- the default security group for the VPC
+  - `aws_vpc_dhcp_options.this` / `aws_vpc_dhcp_options_association.this` -- optional DHCP options (created only when `dhcp_options` is set)
+  - `aws_flow_log.vpc_flow_log` -- optional VPC Flow Log (created only when `enable_flow_logs` is true)
+
+  ## Usage
+
+  ```hcl
+  module "vpc" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/vpc?ref=providers/aws/primitives/vpc/v1.0.0"
+
+    name       = "my-vpc"
+    cidr_block = "10.0.0.0/16"
+
+    enable_dns_support   = true
+    enable_dns_hostnames = true
+
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  Reference modules in this repo consume this primitive via a `const = true`
+  source variable that defaults to the in-repo relative path
+  `../../primitives/vpc`. The pinned git URL above is injected at deploy time via
+  terragrunt inputs when `use_pinned_module_sources` is true.
+
+  ## Configuration notes
+
+  - `enable_dns_hostnames` is automatically disabled when `enable_dns_support` is false.
+  - VPC Flow Logs require both `flow_logs_iam_role_arn` and `flow_logs_destination_arn` when `enable_flow_logs` is true.
+  - When `enable_ipam` is true, provide an IPAM pool id instead of `cidr_block`. AWS supports only one IPAM instance per account.
+
+  ## Examples
+
+  - `examples/basic` -- a VPC with Flow Logs, plus the CloudWatch log group and IAM role fixtures the Flow Log requires
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

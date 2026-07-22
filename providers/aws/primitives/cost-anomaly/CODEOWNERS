@@ -1,0 +1,3 @@
+* @terraform-team @example-org/platform-team
+*.tf @terraform-team @example-org/platform-team
+/tests/ @terraform-test-team @example-org/platform-team

@@ -1,0 +1,87 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # ssm-parameter
+
+  Manages a single AWS SSM Parameter Store parameter of type String, StringList, or SecureString, with optional KMS encryption for SecureString parameters.
+
+  Implements the platform decision (D11) to use SSM Parameter Store over Secrets Manager for runtime application config and secrets. Provisions the `/telemetry/<env>/<plane>/<key>` path inventory defined in docs/terragrunt-concepts.md, where SecureString parameters are encrypted with the `telemetry-config` CMK.
+
+  ## Resources managed
+
+  - `aws_ssm_parameter` -- the SSM parameter (String, StringList, or SecureString)
+
+  ## Usage
+
+  ```hcl
+  module "ssm_parameter" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/ssm-parameter?ref=providers/aws/primitives/ssm-parameter/v0.1.0"
+
+    name  = "/telemetry/prod/ingest/waf-rate-limit"
+    type  = "String"
+    value = "100"
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/basic` -- String parameter at the platform path convention
+  - `examples/securestring` -- SecureString at `/telemetry/prod/ingest/adot-config` bound to a fixture `telemetry-config` CMK
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `type` must be one of `String`, `StringList`, or `SecureString`. Plans fail for any other value.
+  - `kms_key_id` must be provided when `type` is `SecureString`. Plans fail when omitted for SecureString parameters.
+  - `tier` must be one of `Standard`, `Advanced`, or `Intelligent-Tiering`. Plans fail for any other value.
+  - `value` is marked `sensitive = true` and is never exposed in any module output.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

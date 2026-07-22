@@ -1,0 +1,3 @@
+# Trivy misconfig ignore file (replaces .tfsec.yml per ledger D11).
+# Entries here suppress specific Trivy AVD findings after explicit human approval.
+# No entries may be added without documented human review; an empty file is the correct default.

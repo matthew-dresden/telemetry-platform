@@ -1,0 +1,36 @@
+{
+  "OTelLib": "com.anthropic.claude_code",
+  "Version": "1",
+  "_aws": {
+    "CloudWatchMetrics": [
+      {
+        "Namespace": "Telemetry/ClaudeCode",
+        "Dimensions": [
+          []
+        ],
+        "Metrics": [
+          {
+            "Name": "claude_code.session.count",
+            "Unit": "",
+            "StorageResolution": 60
+          }
+        ]
+      }
+    ],
+    "Timestamp": 1784415123379
+  },
+  "claude_code.session.count": 1,
+  "host.arch": "arm64",
+  "organization.id": "dc0f4e70-c9b4-4591-826d-92c210ef8af4",
+  "os.type": "linux",
+  "os.version": "7.0.11-orbstack-00360-gc9bc4d96ac70",
+  "service.name": "claude-code",
+  "service.version": "2.1.210",
+  "session.id": "295675a0-76a7-46d0-ad01-a71b1700dd9f",
+  "start_type": "fresh",
+  "terminal.type": "vscode",
+  "user.account_id": "user_01RNW8GHSFJYMGbUbHrVyCNC",
+  "user.account_uuid": "c55be564-fd6c-4fc4-b62e-6d820ec40379",
+  "user.email": "matthew@dresdencraft.com",
+  "user.id": "bdd7055ea95b1cb85f2f359c7b8e1bf83ce8b6f10de086d0e94dd9441904e1e7"
+}

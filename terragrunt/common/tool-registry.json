@@ -1,0 +1,8 @@
+{
+  "_comment": "SINGLE SOURCE OF TRUTH for every tool whose telemetry the platform ingests. Adding a tool = ONE entry here; terragrunt derives (1) the Glue tool-partition enum (projection.tool.values), (2) the structured-OTLP collector routing list, and (3) the reshape service.name->tool map from this file. 'ingestion': 'body-contract' = the tool emits the flat {timestamp,tool,event_type,payload} JSON body with a top-level 'tool' (raw pipeline; the tool value just needs to be in the enum). 'structured-otlp' = the tool emits standard attribute-shaped OTLP (body = event-name string, data in resource/log-record attributes and/or OTLP metrics) routed by resource.service.name to the structured pipeline + reshape. 'both' = both paths land under this tool value. A 'structured-otlp' or 'both' entry MUST list its service_names. There is NO fallback: an unregistered service.name is NOT routed, so its data lands in the MONITORED errors/ prefix (fail-fast) rather than any catch-all tool. Both envs use this file verbatim (D31). See docs/onboarding-a-tool.md.",
+  "tools": [
+    { "tool": "example-cli",     "ingestion": "body-contract",   "description": "Example CLI tool emitting the flat body contract (top-level 'tool' JSON body)" },
+    { "tool": "example-service", "ingestion": "structured-otlp", "service_names": ["example-service"], "description": "Example service emitting structured attribute-shaped OTLP routed by resource.service.name" },
+    { "tool": "e2e-smoke",       "ingestion": "both",            "service_names": ["synthetic-claude-e2e"], "description": "Reserved e2e-harness marker: flat body-contract mode + the synthetic structured-OTLP claude-events/claude-metrics modes" }
+  ]
+}

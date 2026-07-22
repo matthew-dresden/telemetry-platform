@@ -1,0 +1,62 @@
+Telemetry Platform
+Copyright 2026 The Telemetry Platform Authors
+
+This product includes software developed by The Telemetry Platform Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this project except in compliance with the License. A copy of the License is
+included in the LICENSE file at the root of this repository and is also available
+at http://www.apache.org/licenses/LICENSE-2.0.
+
+--------------------------------------------------------------------------------
+Third-party components
+--------------------------------------------------------------------------------
+
+This project depends on, and/or redistributes portions of, the following
+third-party open-source components. Each remains the property of its respective
+copyright holders and is provided under its own license terms.
+
+OpenTelemetry Protocol (opentelemetry-proto)
+  Copyright The OpenTelemetry Authors
+  License: Apache License 2.0
+  https://github.com/open-telemetry/opentelemetry-proto
+
+Protocol Buffers (protobuf)
+  Copyright Google LLC
+  License: BSD 3-Clause
+  https://github.com/protocolbuffers/protobuf
+
+Matplotlib
+  Copyright Matplotlib Development Team
+  License: Matplotlib License (BSD-compatible, PSF-based)
+  https://github.com/matplotlib/matplotlib
+
+Boto3
+  Copyright Amazon.com, Inc. or its affiliates
+  License: Apache License 2.0
+  https://github.com/boto/boto3
+
+Botocore
+  Copyright Amazon.com, Inc. or its affiliates
+  License: Apache License 2.0
+  https://github.com/boto/botocore
+
+AWS Distro for OpenTelemetry (ADOT) Collector
+  Copyright Amazon.com, Inc. or its affiliates
+  License: Apache License 2.0
+  https://github.com/aws-observability/aws-otel-collector
+
+terraform-modules
+  Copyright Caylent, Inc. and contributors
+  License: Apache License 2.0
+  https://github.com/caylent-solutions/terraform-modules
+
+terraform-terratest-framework
+  Copyright Caylent, Inc. and contributors
+  License: Apache License 2.0
+  https://github.com/caylent-solutions/terraform-terratest-framework
+
+cpm (Caylent Package Manager)
+  Copyright Caylent, Inc. and contributors
+  License: Apache License 2.0
+  https://github.com/caylent-solutions/cpm

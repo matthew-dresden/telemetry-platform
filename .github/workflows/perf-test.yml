@@ -1,0 +1,482 @@
+name: Perf Test
+# Manual, on-demand ephemeral load test. Stands up a fresh sandbox service stack, drives a
+# realistic multi-session load at the collector, renders a graphical CloudWatch+client report,
+# wipes the synthetic data, and tears the stack back down -- no manual steps between dispatch and
+# the final report/teardown.
+#
+# Sandbox-only by design: the sandbox account is ci_deploy=false (D33) and applied on-demand via
+# TT_ON_DEMAND_APPLY=1 + ci_deploy_on_demand=true (accounts.json). The OIDC apply role is trust-
+# gated to the `sandbox-apply` GitHub environment, so every credentialed job runs in it.
+on:
+  workflow_dispatch:
+    inputs:
+      sessions:
+        description: Total logical Claude-Code sessions to simulate (split across
+          shards).
+        required: false
+        type: string
+        default: '2000'
+      ramp_minutes:
+        description: Minutes over which each shard staggers its sessions up to steady
+          state.
+        required: false
+        type: string
+        default: '5'
+      hold_minutes:
+        description: Minutes each shard holds steady-state load.
+        required: false
+        type: string
+        default: '30'
+      shards:
+        description: Number of parallel load runners (distinct source IPs) to fan
+          the load across.
+        required: false
+        type: string
+        default: '1'
+      target_ref:
+        description: Git ref to stand up + load-test (default the repository default
+          branch).
+        required: false
+        type: string
+        default: ''
+# One perf-test at a time. cancel-in-progress:false so an in-flight run (which owns live sandbox
+# infra + a live WAF allow rule) is never cut off mid-flight and left half-applied / not cleaned up.
+concurrency:
+  group: perf-test
+  cancel-in-progress: false
+permissions:
+  contents: read
+  id-token: write
+env:
+  # Blank the env-keyed named AWS profile so terragrunt uses the ambient OIDC-assumed role
+  # (root.hcl: _use_oidc -> empty profile), and share ONE provider cache across the run-all scope.
+  TG_USE_OIDC: 'true'
+  TG_PROVIDER_CACHE: 'true'
+  # This lane only ever targets the sandbox ephemeral account.
+  PERF_ENV: sandbox
+jobs:
+  # ---------------------------------------------------------------------------
+  # resolve-scope: pure-config derivation (NO AWS credentials). Partitions the full sandbox unit
+  # tree by resolved account and selects the sandbox SERVICE-account row, so the stand-up/tear-down
+  # scope is exactly the service units and the dns-owner units (dns-delegation -- no cross-account
+  # dns-writer grant for the sandbox apply role) are excluded BY ACCOUNT, not by a hardcoded path.
+  # ---------------------------------------------------------------------------
+  resolve-scope:
+    name: resolve-scope
+    runs-on: ubuntu-latest
+    outputs:
+      role_arn: ${{ steps.scope.outputs.role_arn }}
+      aws_region: ${{ steps.scope.outputs.aws_region }}
+      include_dir_flags: ${{ steps.scope.outputs.include_dir_flags }}
+      unit_count: ${{ steps.scope.outputs.unit_count }}
+      shard_indices: ${{ steps.scope.outputs.shard_indices }}
+      shard_count: ${{ steps.scope.outputs.shard_count }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          ref: ${{ inputs.target_ref || github.event.repository.default_branch }}
+      - uses: ./.github/actions/setup-tools
+      - name: Derive sandbox service scope + role + endpoint + shard matrix
+        id: scope
+        shell: bash
+        env:
+          SHARDS: ${{ inputs.shards }}
+        run: |
+          set -euo pipefail
+          # Enumerate EVERY sandbox unit (every terragrunt.hcl leaf under the single-region
+          # sandbox live tree; bootstrap/** lives outside this subtree and is thus never included).
+          sandbox_root="$(ls -d terragrunt/live/telemetry/*/sandbox | head -1)"
+          if [ -z "${sandbox_root}" ]; then
+            echo "ERROR: could not locate the sandbox live tree under terragrunt/live/telemetry." >&2
+            exit 1
+          fi
+          all_flags=""
+          while IFS= read -r leaf; do
+            all_flags="${all_flags} --queue-include-dir $(dirname "${leaf}")"
+          done < <(find "${sandbox_root}" -name terragrunt.hcl | sort)
+          if [ -z "${all_flags}" ]; then
+            echo "ERROR: found no terragrunt units under ${sandbox_root}." >&2
+            exit 1
+          fi
+          # Partition by resolved account (on-demand apply mode so the sandbox ci_deploy=false
+          # account resolves), then select ONLY the sandbox SERVICE-account row.
+          TT_ON_DEMAND_APPLY=1 make tg-partition-units \
+            MODE=apply INCLUDE_DIR_FLAGS="${all_flags}" OUTPUT=partition.txt
+          service_account_id="$(uv run python -c 'import json; print(json.load(open("terragrunt/common/env_accounts.json"))["envs"]["sandbox"]["account_id"])')"
+          make tg-select-partition-row \
+            MATRIX_FILE=partition.txt ACCOUNT_ID="${service_account_id}" OUTPUT="${GITHUB_OUTPUT}"
+          # NOTE: the collector endpoint is NOT derived here. The ephemeral sandbox apply is
+          # scoped to the SERVICE account and cannot create the cross-account public DNS
+          # delegation (dns-owner), so collector.<pretty_apex> does not resolve. The stand-up
+          # job instead reads the collector's CloudFront DEFAULT domain (which resolves + serves
+          # with no custom DNS) from the applied unit's cloudfront_domain_name output and exposes
+          # it as a stand-up job output -- it cannot be known pre-apply.
+          # Fan-out matrix: a JSON array of shard indices [0..shards-1].
+          shard_indices="$(uv run python -c 'import json,os; n=int(os.environ["SHARDS"]); assert n>=1; print(json.dumps(list(range(n))))')"
+          echo "shard_indices=${shard_indices}" >> "${GITHUB_OUTPUT}"
+          echo "shard_count=${SHARDS}" >> "${GITHUB_OUTPUT}"
+
+  # ---------------------------------------------------------------------------
+  # stand-up: apply the sandbox service stack at target_ref, resolve the collector's CloudFront
+  # DEFAULT domain (dXXXX.cloudfront.net -- resolves + serves with no custom DNS, unlike the
+  # cross-account pretty FQDN the ephemeral service-account apply cannot delegate), and expose it
+  # as the collector_endpoint job output. Then READINESS-GATE it (no sleep): a SINGLE minimal
+  # OTLP-logs request is polled against that endpoint until the collector answers at the HTTP
+  # layer (any non-5xx response proves it is serving). The timeout is env-driven and fail-fast.
+  # ---------------------------------------------------------------------------
+  stand-up:
+    name: stand-up
+    runs-on: ubuntu-latest
+    needs: resolve-scope
+    environment: sandbox-apply
+    outputs:
+      collector_endpoint: ${{ steps.endpoint.outputs.collector_endpoint }}
+    env:
+      TT_ON_DEMAND_APPLY: '1'
+      OBSERVABILITY_BUDGET_AMOUNT: ${{ vars.OBSERVABILITY_BUDGET_AMOUNT }}
+      OBSERVABILITY_BUDGET_EMAIL: ${{ vars.OBSERVABILITY_BUDGET_EMAIL }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          ref: ${{ inputs.target_ref || github.event.repository.default_branch }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Configure git auth for in-repo pinned module fetches
+        shell: bash
+        env:
+          GH_JOB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config --global \
+            url."https://x-access-token:${GH_JOB_TOKEN}@github.com/".insteadOf \
+            "https://github.com/"
+      - name: Configure AWS credentials (OIDC -- sandbox apply role, sandbox-apply
+          environment gate)
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df  # v4.4.0
+        with:
+          role-to-assume: ${{ needs.resolve-scope.outputs.role_arn }}
+          role-session-name: gha-perf-standup-${{ github.run_id }}
+          aws-region: ${{ needs.resolve-scope.outputs.aws_region }}
+          audience: sts.amazonaws.com
+      - name: Configure env-driven readiness timeout (override only when the repo
+          var is set)
+        shell: bash
+        env:
+          READINESS_TIMEOUT_VAR: ${{ vars.PERF_READINESS_TIMEOUT }}
+          READINESS_POLL_INTERVAL_VAR: ${{ vars.PERF_READINESS_POLL_INTERVAL }}
+        run: |
+          set -euo pipefail
+          # Only export a timeout when the repo var is set -- otherwise the readiness probe's own
+          # env-driven default (scripts.constants) applies (exporting an EMPTY value would break
+          # int()/float() parsing at import time).
+          for pair in \
+            "PERF_READINESS_TIMEOUT=${READINESS_TIMEOUT_VAR}" \
+            "PERF_READINESS_POLL_INTERVAL=${READINESS_POLL_INTERVAL_VAR}"; do
+            name="${pair%%=*}"
+            value="${pair#*=}"
+            if [ -n "${value}" ]; then
+              echo "${name}=${value}" >> "${GITHUB_ENV}"
+            fi
+          done
+      - name: State preflight guard
+        shell: bash
+        run: make tf-state-preflight
+      - name: Terragrunt apply (sandbox service scope; dns-owner + bootstrap excluded)
+        shell: bash
+        env:
+          INCLUDE_DIR_FLAGS: ${{ needs.resolve-scope.outputs.include_dir_flags }}
+        run: |
+          set -euo pipefail
+          make tg-apply INCLUDE_DIR_FLAGS="${INCLUDE_DIR_FLAGS}"
+      - name: Resolve collector CloudFront default-domain endpoint
+        id: endpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Discover the collector's CloudFront distribution via the AWS API and emit its
+          # AWS-assigned default domain (dXXXX.cloudfront.net) as the readiness/load endpoint.
+          # This is deliberately NOT `terragrunt output`: reading a single unit's output
+          # re-resolves its dependency blocks, and one of them (the prod dns-prod-zone bootstrap
+          # state) is not readable by the sandbox apply role, so `terragrunt output` fails even
+          # though the collector's own output exists. The API discovery matches the distribution
+          # by the env-specific collector alias from domains.json (namespace-agnostic), and the
+          # default CloudFront domain resolves + serves with no custom cross-account DNS.
+          make perf-collector-endpoint ENV=sandbox OUTPUT="${GITHUB_OUTPUT}"
+      # Infrastructure readiness is proven by a SINGLE naming-agnostic gate: one minimal valid
+      # OTLP-logs request POSTed to the CloudFront default-domain endpoint, polled until the
+      # collector answers at the HTTP layer (any non-5xx response proves the edge is serving; a
+      # connection/TLS error or a 5xx means keep polling). No stack/FQDN probes are used here --
+      # the pretty FQDN does not resolve for the ephemeral service-account apply, and the empty
+      # OTLP request lands no synthetic data. Bounded, env-driven timeout; fail-fast.
+      - name: Readiness gate -- single request reaches the collector (CloudFront default
+          domain)
+        shell: bash
+        env:
+          COLLECTOR_ENDPOINT: ${{ steps.endpoint.outputs.collector_endpoint }}
+        run: |
+          set -euo pipefail
+          make perf-readiness PERF_ENDPOINT="${COLLECTOR_ENDPOINT}"
+
+  # ---------------------------------------------------------------------------
+  # waf-allowlist: one-time structural WebACL change -- create the perf IPSet + terminating ALLOW
+  # rule on the collector CloudFront WAFv2 WebACL so load traffic bypasses the per-IP rate cap.
+  # The per-shard egress IPs are added to the IPSet by the load shards themselves (a shard runs on
+  # a different runner/IP than this job). Removed in cleanup.
+  # ---------------------------------------------------------------------------
+  waf-allowlist:
+    name: waf-allowlist
+    runs-on: ubuntu-latest
+    needs: [resolve-scope, stand-up]
+    environment: sandbox-apply
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          ref: ${{ inputs.target_ref || github.event.repository.default_branch }}
+      - uses: ./.github/actions/setup-tools
+      - name: Configure AWS credentials (OIDC -- sandbox apply role)
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df  # v4.4.0
+        with:
+          role-to-assume: ${{ needs.resolve-scope.outputs.role_arn }}
+          role-session-name: gha-perf-waf-${{ github.run_id }}
+          aws-region: ${{ needs.resolve-scope.outputs.aws_region }}
+          audience: sts.amazonaws.com
+      - name: Ensure the perf ALLOW rule + IPSet skeleton exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          make perf-waf-allowlist-apply ENV=sandbox PERF_WAF_ARGS="--ambient-credentials"
+
+  # ---------------------------------------------------------------------------
+  # load: matrix fan-out over shards. Each shard allowlists its OWN egress IP (idempotent, optimistic
+  # -lock safe) then drives sessions/shards virtual users through the collector, writing a per-shard
+  # client-side results JSON artifact.
+  # ---------------------------------------------------------------------------
+  load:
+    name: load (shard ${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    # stand-up is listed explicitly (not just transitively via waf-allowlist) so this job can
+    # consume its collector_endpoint output (the CloudFront default-domain URL to drive load at).
+    needs: [resolve-scope, stand-up, waf-allowlist]
+    environment: sandbox-apply
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.resolve-scope.outputs.shard_indices) }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          ref: ${{ inputs.target_ref || github.event.repository.default_branch }}
+      - uses: ./.github/actions/setup-tools
+      - name: Configure AWS credentials (OIDC -- sandbox apply role, for the WAF IPSet
+          update)
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df  # v4.4.0
+        with:
+          role-to-assume: ${{ needs.resolve-scope.outputs.role_arn }}
+          role-session-name: gha-perf-load-${{ github.run_id }}-${{ matrix.shard }}
+          aws-region: ${{ needs.resolve-scope.outputs.aws_region }}
+          audience: sts.amazonaws.com
+      - name: Allowlist this runner's egress IP on the collector WAF
+        shell: bash
+        run: |
+          set -euo pipefail
+          my_ip="$(curl -fsS https://checkip.amazonaws.com | tr -d '[:space:]')"
+          if [ -z "${my_ip}" ]; then
+            echo "ERROR: could not determine this runner's egress IP for WAF allowlisting." >&2
+            exit 1
+          fi
+          echo "Allowlisting runner egress IP ${my_ip}/32 on the collector WAF."
+          make perf-waf-allowlist-apply ENV=sandbox \
+            PERF_WAF_ARGS="--ambient-credentials --add-cidr ${my_ip}/32"
+      - name: Run the virtual-user load driver
+        shell: bash
+        env:
+          SESSIONS: ${{ inputs.sessions }}
+          SHARD_COUNT: ${{ needs.resolve-scope.outputs.shard_count }}
+          SHARD: ${{ matrix.shard }}
+          RAMP_MINUTES: ${{ inputs.ramp_minutes }}
+          HOLD_MINUTES: ${{ inputs.hold_minutes }}
+          RUN_ID: perf-${{ github.run_id }}-${{ matrix.shard }}
+          COLLECTOR_ENDPOINT: ${{ needs.stand-up.outputs.collector_endpoint }}
+        run: |
+          set -euo pipefail
+          if [ -z "${COLLECTOR_ENDPOINT}" ]; then
+            echo "ERROR: stand-up did not publish a collector_endpoint; cannot drive load." >&2
+            exit 1
+          fi
+          # Even split of the total sessions across shards; the first (SESSIONS % SHARD_COUNT)
+          # shards each take one extra so the shard sessions sum EXACTLY to the requested total.
+          base=$(( SESSIONS / SHARD_COUNT ))
+          remainder=$(( SESSIONS % SHARD_COUNT ))
+          extra=0
+          if [ "${SHARD}" -lt "${remainder}" ]; then
+            extra=1
+          fi
+          sessions_per_shard=$(( base + extra ))
+          if [ "${sessions_per_shard}" -lt 1 ]; then
+            echo "shard ${SHARD} resolves to 0 sessions (sessions < shards); nothing to drive."
+            exit 0
+          fi
+          ramp_seconds=$(( RAMP_MINUTES * 60 ))
+          hold_seconds=$(( HOLD_MINUTES * 60 ))
+          echo "shard ${SHARD}: ${sessions_per_shard} sessions, ramp ${ramp_seconds}s hold ${hold_seconds}s"
+          # --endpoint drives load at the CloudFront default domain (perf_loadgen extracts the
+          # host from the collector_endpoint URL; the OTLP signal path + port are applied by it).
+          loadgen_args="--endpoint ${COLLECTOR_ENDPOINT} --sessions ${sessions_per_shard}"
+          loadgen_args="${loadgen_args} --ramp-seconds ${ramp_seconds} --hold-seconds ${hold_seconds}"
+          loadgen_args="${loadgen_args} --run-id ${RUN_ID}"
+          make perf-loadgen ENV=sandbox \
+            PERF_RESULTS="perf-results-${SHARD}.json" \
+            PERF_LOADGEN_ARGS="${loadgen_args}"
+      - name: Upload this shard's results
+        if: hashFiles(format('perf-results-{0}.json', matrix.shard)) != ''
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+        with:
+          name: perf-results-${{ matrix.shard }}
+          path: perf-results-${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # report: merge the per-shard client results, pull CloudWatch over the run window (ECS/ALB/WAF/
+  # Firehose/Lambda), render one self-contained HTML report with embedded matplotlib PNGs, upload
+  # it, and write headline numbers to the job Step Summary.
+  # ---------------------------------------------------------------------------
+  report:
+    name: report
+    runs-on: ubuntu-latest
+    needs: [resolve-scope, load]
+    environment: sandbox-apply
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          ref: ${{ inputs.target_ref || github.event.repository.default_branch }}
+      - uses: ./.github/actions/setup-tools
+      - name: Configure AWS credentials (OIDC -- sandbox apply role, for the CloudWatch
+          pull)
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df  # v4.4.0
+        with:
+          role-to-assume: ${{ needs.resolve-scope.outputs.role_arn }}
+          role-session-name: gha-perf-report-${{ github.run_id }}
+          aws-region: ${{ needs.resolve-scope.outputs.aws_region }}
+          audience: sts.amazonaws.com
+      - name: Download all shard results
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
+        with:
+          pattern: perf-results-*
+          path: perf-shard-results
+          merge-multiple: true
+      - name: Merge shard results into one combined results file
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p e2e-evidence
+          inputs=""
+          while IFS= read -r f; do
+            inputs="${inputs} --results ${f}"
+          done < <(find perf-shard-results -name 'perf-results-*.json' | sort)
+          if [ -z "${inputs}" ]; then
+            echo "ERROR: no shard result files were downloaded to merge." >&2
+            exit 1
+          fi
+          # ENV is required: PERF_RESULTS defaults to e2e-evidence/perf-results-$(ENV).json, so
+          # without ENV the merge writes perf-results-.json and the report (run with ENV=sandbox)
+          # cannot find it. Pass ENV so the merge output path matches the report's input path.
+          make perf-merge-results ENV=sandbox PERF_MERGE_INPUTS="${inputs}"
+      - name: Render the graphical CloudWatch + client report
+        shell: bash
+        run: |
+          set -euo pipefail
+          make perf-report ENV=sandbox PERF_REPORT_ARGS="--ambient-credentials"
+      - name: Write headline numbers to the job Step Summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run python -m scripts.perf_step_summary \
+            --results e2e-evidence/perf-results-sandbox.json \
+            --output "${GITHUB_STEP_SUMMARY}"
+      - name: Upload the perf report + evidence
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+        with:
+          name: perf-report-sandbox
+          path: |
+            e2e-evidence/perf-report-sandbox.html
+            e2e-evidence/perf-evidence-sandbox.json
+            e2e-evidence/perf-results-sandbox.json
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # cleanup: runs even on failure (always()). Wipes the synthetic tool=e2e-smoke data, clears the
+  # WAF ALLOW rule + IPSet, then destroys the sandbox service stack (same scope as stand-up). Each
+  # teardown step is if:always() so a failure in one never skips the destroy -- nothing is left
+  # running even if an earlier job failed. Scope + role are re-derived from resolve-scope, so
+  # teardown works regardless of the stand-up job's outcome.
+  # ---------------------------------------------------------------------------
+  cleanup:
+    name: cleanup + teardown
+    runs-on: ubuntu-latest
+    needs: [resolve-scope, stand-up, waf-allowlist, load, report]
+    # Run even when earlier jobs failed (so nothing is left running), BUT only when the scope/role
+    # actually resolved -- if resolve-scope failed, no infra was applied (stand-up depends on it),
+    # so there is nothing to tear down and cleanup would only fail on empty inputs.
+    if: ${{ always() && needs.resolve-scope.result == 'success' }}
+    environment: sandbox-apply
+    env:
+      TT_ON_DEMAND_APPLY: '1'
+      OBSERVABILITY_BUDGET_AMOUNT: ${{ vars.OBSERVABILITY_BUDGET_AMOUNT }}
+      OBSERVABILITY_BUDGET_EMAIL: ${{ vars.OBSERVABILITY_BUDGET_EMAIL }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          ref: ${{ inputs.target_ref || github.event.repository.default_branch }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Configure git auth for in-repo pinned module fetches
+        shell: bash
+        env:
+          GH_JOB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config --global \
+            url."https://x-access-token:${GH_JOB_TOKEN}@github.com/".insteadOf \
+            "https://github.com/"
+      - name: Configure AWS credentials (OIDC -- sandbox apply role)
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df  # v4.4.0
+        with:
+          role-to-assume: ${{ needs.resolve-scope.outputs.role_arn }}
+          role-session-name: gha-perf-cleanup-${{ github.run_id }}
+          aws-region: ${{ needs.resolve-scope.outputs.aws_region }}
+          audience: sts.amazonaws.com
+      # No separate synthetic-data wipe step: this is an EPHEMERAL run, so the
+      # "Terragrunt destroy" step below tears down the whole sandbox service tree
+      # -- including the data-lake S3 bucket (force_destroy) -- which removes ALL
+      # synthetic load-test data. A dedicated wipe via `make e2e-all` would also
+      # EMIT through the collector (e2e-loadgen) to the pretty FQDN, which does not
+      # resolve for the service-only ephemeral apply, so it is both redundant and
+      # would fail. Data cleanup is guaranteed by the destroy.
+      - name: Clear the perf WAF ALLOW rule + IPSet
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          make perf-waf-allowlist-remove ENV=sandbox PERF_WAF_ARGS="--ambient-credentials"
+      - name: Recursively delete the sandbox analytics Athena workgroup(s) so destroy
+          can no-op them
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          # An Athena WorkGroup that has accumulated query history cannot be deleted without the
+          # recursive/force option, and the athena-workgroup primitive exposes NO force_destroy
+          # input, so `terragrunt destroy` fails on the analytics workgroup. Recursively delete
+          # the namespace-discovered sandbox analytics workgroup(s) here (idempotent -- tolerates
+          # already-gone) so the destroy below finds them absent and no-ops. The proper long-term
+          # fix is a force_destroy input on the athena-workgroup primitive + analytics reference
+          # (out of scope for this ephemeral-teardown change).
+          make athena-workgroup-cleanup ENV=sandbox ATHENA_CLEANUP_ARGS="--ambient-credentials"
+      - name: Terragrunt destroy (same sandbox service scope as stand-up)
+        if: always()
+        shell: bash
+        env:
+          INCLUDE_DIR_FLAGS: ${{ needs.resolve-scope.outputs.include_dir_flags }}
+        run: |-
+          set -euo pipefail
+          make tg-destroy INCLUDE_DIR_FLAGS="${INCLUDE_DIR_FLAGS}"

@@ -1,0 +1,95 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # sns-topic
+
+  Manages a KMS-encrypted SNS topic with its subscriptions and access policy.
+
+  Used as the notification sink for CloudWatch alarm actions and cost-anomaly SNS subscriber in the observability reference module. A CloudWatch metric alarm has no email field; it can only notify via an SNS topic ARN, so this topic is the mandatory delivery path for platform alerts.
+
+  ## Resources managed
+
+  - `aws_sns_topic` -- the KMS-encrypted SNS topic
+  - `aws_sns_topic_subscription` -- one subscription per entry in `subscribers`
+  - `aws_sns_topic_policy` -- the optional access policy when `policy_json` is provided
+
+  ## Usage
+
+  ```hcl
+  module "sns_topic" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/sns-topic?ref=providers/aws/primitives/sns-topic/v0.1.0"
+
+    topic_name = "platform-alerts"
+    kms_key_id = module.kms_key.key_arn
+    subscribers = [
+      {
+        protocol = "email"
+        endpoint = "ops@example.com"
+      }
+    ]
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/basic` -- KMS-encrypted topic with no subscriptions
+  - `examples/with-subscriptions` -- topic with an email subscription and a topic policy
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `topic_name` must match `^[A-Za-z0-9_-]+$`. Plans fail if the pattern is not satisfied.
+  - `kms_key_id` must start with `arn:aws:kms:` or `alias/`. Plans fail if the topic would be unencrypted.
+  - Each `subscribers` entry `protocol` must be one of: `email`, `email-json`, `https`, `sqs`, `lambda`, `sms`.
+  - Each `subscribers` entry `endpoint` must be non-empty.
+  - `policy_json`, when provided, must be valid JSON. Plans fail for malformed JSON.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

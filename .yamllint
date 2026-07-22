@@ -1,0 +1,27 @@
+extends: default
+
+rules:
+  line-length:
+    max: 160
+    level: warning
+  truthy:
+    allowed-values:
+      - "true"
+      - "false"
+    check-keys: false
+  comments:
+    min-spaces-from-content: 1
+  document-start:
+    present: false
+  braces:
+    max-spaces-inside: 1
+  brackets:
+    max-spaces-inside: 1
+
+ignore: |
+  .venv/
+  .terraform/
+  .terragrunt-cache/
+  node_modules/
+  dist/
+  build/

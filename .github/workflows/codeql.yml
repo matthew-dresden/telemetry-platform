@@ -1,0 +1,81 @@
+name: CodeQL
+# CodeQL static analysis (GitHub code scanning / Advanced Security).
+#
+# Runs the default query suite for every language in the repo:
+#   - on every pull_request to main (NO path filters, so the required
+#     `codeql-required` check ALWAYS reports and can never hang a merge),
+#   - on every merge_group (GitHub Merge Queue speculative ref): `codeql-required`
+#     is a branch-protection required check, so it MUST report on the merge_group
+#     event or the queue would hang forever waiting for it. See
+#     docs/release-pipeline.md ("GitHub Merge Queue"),
+#   - on every push to main (security-tab baseline + alert dismissal tracking),
+#   - weekly on a schedule (catches newly published query/advisory updates).
+#
+# A single aggregate job (`codeql-required`) reuses
+# scripts/aggregate_required_checks.py so there is ONE stable required-status
+# context regardless of how many language legs run -- this is the context wired
+# into the `main` branch-protection ruleset. The per-language `Analyze (...)`
+# jobs are intentionally NOT required directly, so adding/removing a language
+# never orphans a required check.
+#
+# build-mode: none for python + javascript-typescript (build-free extraction).
+# Go uses build-mode: autobuild because the CodeQL Go extractor does NOT support
+# build-mode none (it requires autobuild or manual); autobuild best-effort builds
+# the per-module go.mod packages and extracts what compiles.
+#
+# Action SHAs are pinned to a 40-char commit with a trailing version comment per
+# the actions-sha-pin-check gate.
+on:
+  pull_request:
+    branches: [main]
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+  schedule:
+    - cron: 27 4 * * 1
+permissions:
+  contents: read
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: python
+            build-mode: none
+          - language: javascript-typescript
+            build-mode: none
+          - language: go
+            build-mode: autobuild
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@dd903d2e4f5405488e5ef1422510ee31c8b32357  # v3.36.2
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@dd903d2e4f5405488e5ef1422510ee31c8b32357  # v3.36.2
+        with:
+          category: /language:${{ matrix.language }}
+  codeql-required:
+    name: codeql-required
+    needs: [analyze]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+      - uses: ./.github/actions/setup-tools
+      - name: Aggregate CodeQL analyze results
+        shell: bash
+        env:
+          RESULTS: ${{ toJson(needs) }}
+        run: make required-checks-aggregate

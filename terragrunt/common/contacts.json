@@ -1,0 +1,18 @@
+{
+  "prod": {
+    "alert_emails": ["platform-alerts@example.com"],
+    "budget_emails": ["platform-alerts@example.com"]
+  },
+  "sandbox": {
+    "alert_emails": ["platform-alerts@example.com"],
+    "budget_emails": ["platform-alerts@example.com"]
+  },
+  "qa": {
+    "alert_emails": ["platform-alerts@example.com"],
+    "budget_emails": ["platform-alerts@example.com"]
+  },
+  "bootstrap": {
+    "alert_emails": ["platform-alerts@example.com"],
+    "budget_emails": ["platform-alerts@example.com"]
+  }
+}

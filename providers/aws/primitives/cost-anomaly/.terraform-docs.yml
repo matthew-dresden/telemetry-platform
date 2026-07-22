@@ -1,0 +1,101 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # cost-anomaly
+
+  Manages an AWS Cost Explorer anomaly monitor and its alert subscription.
+
+  Used by the observability reference module to detect unexpected spend spikes. This is the sole module for Cost Anomaly Detection and is composed by the observability reference module.
+
+  ## Resources managed
+
+  - `aws_ce_anomaly_monitor` -- the anomaly monitor (DIMENSIONAL or CUSTOM)
+  - `aws_ce_anomaly_subscription` -- the alert subscription wired to the monitor
+
+  ## Usage
+
+  ```hcl
+  module "cost_anomaly" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/cost-anomaly?ref=providers/aws/primitives/cost-anomaly/v0.1.0"
+
+    monitor_name      = "platform-spend-monitor"
+    subscription_name = "platform-spend-alerts"
+    threshold_expression = jsonencode({
+      Dimensions = {
+        Key          = "ANOMALY_TOTAL_IMPACT_PERCENTAGE"
+        Values       = ["10"]
+        MatchOptions = ["GREATER_THAN_OR_EQUAL"]
+      }
+    })
+    subscribers = [
+      {
+        address = module.sns_topic.topic_arn
+        type    = "SNS"
+      }
+    ]
+  }
+  ```
+
+  ## Examples
+
+  - `examples/default` -- DIMENSIONAL monitor with DAILY frequency and an SNS subscriber wired to the sns-topic topic_arn
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `monitor_name` must be non-empty. Plans fail for empty strings.
+  - `monitor_type` must be one of `DIMENSIONAL` or `CUSTOM`.
+  - `monitor_specification` must be provided when `monitor_type` is `CUSTOM`.
+  - `subscription_name` must be non-empty. Plans fail for empty strings.
+  - `subscription_frequency` must be one of `DAILY`, `IMMEDIATE`, or `WEEKLY`.
+  - `threshold_expression` must be valid JSON containing a `Dimensions` object with `Key`, `Values`, and `MatchOptions` fields. Plans fail for malformed JSON or missing required keys.
+  - `subscribers` must be non-empty -- anomaly alerts must always have a destination (fail-fast).
+  - Each subscriber `type` must be one of `EMAIL` or `SNS`.
+  - Each subscriber `address` must be non-empty.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

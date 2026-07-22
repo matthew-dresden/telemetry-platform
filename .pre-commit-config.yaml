@@ -1,0 +1,60 @@
+# pre-commit hook configuration (iac/03 section 2.8, iac/00 D29).
+# All hooks use language: system and delegate exclusively to make targets.
+# No enforcement logic lives in this file -- all gates evolve in the Makefile.
+repos:
+  - repo: local
+    hooks:
+      - id: py-format-check
+        name: Python format check
+        language: system
+        entry: make py-format-check
+        stages: [pre-commit]
+        pass_filenames: false
+      - id: py-lint
+        name: Python lint
+        language: system
+        entry: make py-lint
+        stages: [pre-commit]
+        pass_filenames: false
+      - id: py-typecheck
+        name: Python type check
+        language: system
+        entry: make py-typecheck
+        stages: [pre-commit]
+        pass_filenames: false
+      - id: py-security
+        name: Python security scan
+        language: system
+        entry: make py-security
+        stages: [pre-commit]
+        pass_filenames: false
+      - id: tf-format-check
+        name: Terraform format check
+        language: system
+        entry: make tf-format-check
+        stages: [pre-commit]
+        pass_filenames: false
+      - id: yaml-format-check
+        name: YAML format check
+        language: system
+        entry: make yaml-format-check
+        stages: [pre-commit]
+        pass_filenames: false
+      - id: yaml-lint
+        name: YAML lint
+        language: system
+        entry: make yaml-lint
+        stages: [pre-commit]
+        pass_filenames: false
+      - id: md-lint
+        name: Markdown lint
+        language: system
+        entry: make md-lint
+        stages: [pre-commit]
+        pass_filenames: false
+      - id: ci
+        name: Full CI suite
+        language: system
+        entry: make ci
+        stages: [pre-push]
+        pass_filenames: false

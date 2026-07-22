@@ -1,0 +1,4 @@
+# Terraform archive_file output for the CloudWatch-Logs-split transform Lambda
+# (data.archive_file.cwl_transform.output_path = ${path.module}/.build/cwl_split.zip).
+# A build artifact regenerated on every plan/apply -- never committed.
+.build/

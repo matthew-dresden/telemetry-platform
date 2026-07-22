@@ -1,0 +1,16 @@
+# AWS-0052: Application load balancer not set to drop invalid headers
+# This finding applies only to fixture ALBs created in examples/ for Terratest runs.
+# The alb-listener module manages listeners, not the ALB itself; the fixture ALB is
+# ephemeral test infrastructure and not subject to production hardening requirements.
+AWS-0052
+
+# AWS-0104: Security group unrestricted egress
+# Fixture security groups in examples/ allow unrestricted egress so the fixture ALB
+# can reach test targets. These security groups are ephemeral and not production resources.
+AWS-0104
+
+# AWS-0178: VPC Flow Logs not enabled
+# This finding applies only to example/fixture VPCs used in Terratest runs.
+# Fixture VPCs are ephemeral (created and destroyed per test run) and do not require
+# production-grade VPC Flow Log configuration.
+AWS-0178

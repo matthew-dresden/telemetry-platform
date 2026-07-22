@@ -1,0 +1,38 @@
+version: '2'
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosimple
+    - gocritic
+    - gofmt
+    - goimports
+    - misspell
+    - unconvert
+    - unparam
+    - noctx
+    - bodyclose
+    - contextcheck
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  govet:
+    enable-all: true
+  gocritic:
+    enabled-tags: [diagnostic, style, performance]
+  goimports:
+    local-prefixes: github.com/example-org/telemetry-platform
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters: [errcheck, unparam]
+  max-issues-per-linter: 0
+  max-same-issues: 0
+run:
+  timeout: 10m
+  tests: true
+  build-tags: []

@@ -1,0 +1,17 @@
+# AWS-0104: Security group unrestricted egress
+# The ECS service security group and ALB security group in the fixture examples require
+# unrestricted egress for Fargate tasks to reach ECR, SSM Parameter Store, CloudWatch Logs,
+# and external services. Restricting egress in fixture VPCs would break container startup.
+AWS-0104
+
+# AWS-0178: VPC Flow Logs not enabled
+# This finding applies only to example/fixture VPCs used in Terratest runs.
+# Fixture VPCs are ephemeral (created and destroyed per test run) and do not require
+# production-grade VPC Flow Log configuration.
+AWS-0178
+
+# AWS-0017: Log group not encrypted with KMS CMK
+# The CloudWatch log group in this module is encrypted by default using AWS-managed keys.
+# KMS CMK encryption is optional for test deployments. Production deployments can add
+# KMS CMK encryption via module amendment if required.
+AWS-0017

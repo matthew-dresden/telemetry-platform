@@ -1,0 +1,82 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # route53-zone
+
+  Manages a single AWS Route53 public hosted zone, exposing the zone ID, name servers list, ARN, and zone name for use by downstream modules.
+
+  Used for creating hosted zones for the telemetry-collector platform DNS infrastructure. The upstream route53-record primitive cannot create hosted zones (decision D7), so this dedicated primitive is required.
+
+  ## Resources managed
+
+  - `aws_route53_zone` -- the public hosted zone
+
+  ## Usage
+
+  ```hcl
+  module "route53_zone" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/route53-zone?ref=providers/aws/primitives/route53-zone/v0.1.0"
+
+    zone_name = "example.com"
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/basic` -- public hosted zone with force_destroy enabled for ephemeral test environments
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `zone_name` must match `^[a-z0-9.-]+$`. Plans fail if the pattern is not satisfied.
+  - `force_destroy` defaults to false. Set to true only for ephemeral test zones to avoid accidental record deletion in production.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

@@ -1,0 +1,333 @@
+name: Main Validation
+
+on:
+  push:
+    branches: [main]
+
+# Release lane = a single repo-wide SERIALIZED FIFO QUEUE. The release job
+# commits + tags + pushes to the one `main` ref under a GLOBAL branch lock
+# (scripts/lock_branch.py + the single BRANCH_LOCK_RUN_ID_MAIN variable), so
+# releases MUST be globally serialized -- per-module lanes would race on the
+# lock, on that variable, and on `git push origin main`. cancel-in-progress:
+# false keeps an in-flight release from being cancelled by a newer merge.
+#
+# RESIDUAL LIMITATION (the supersede-pending behaviour this lane carries): GitHub
+# Actions workflow `concurrency` supports only `group` and `cancel-in-progress` --
+# there is NO `queue` key. (An earlier comment claimed a `queue: max` fix "held
+# back by the pinned actionlint"; that was mistaken -- `queue:` is a GitHub MERGE
+# QUEUE concept, not a workflow-concurrency key, so bumping actionlint would not
+# add a real deep-FIFO.) With cancel-in-progress: false, at most ONE run may be
+# pending per group; when a newer run is queued while one is already pending,
+# GitHub supersedes the previously-PENDING run. So a burst of 3+ near-simultaneous
+# merges could drop the middle release run and its module tag never publishes.
+# MITIGATION: the repo's GitHub MERGE QUEUE serializes PR merges (each spaced by
+# its merge_group build time), so 3+ near-simultaneous merges are unlikely. A true
+# deep-FIFO would require an external mutex/turnstile action, not a
+# workflow-concurrency key. See docs/release-pipeline.md ("Concurrency and FIFO
+# semantics").
+concurrency:
+  group: release-pipeline
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: read
+  id-token: write
+  actions: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # skip-check: detect release commits authored by the bot (B16)
+  # ---------------------------------------------------------------------------
+  skip-check:
+    name: skip-check
+    if: ${{ github.actor != 'github-actions[bot]' || !startsWith(github.event.head_commit.message, 'chore(release):') }}
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.check.outputs.should_skip }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+      - uses: ./.github/actions/setup-tools
+      - name: Check release commit skip
+        id: check
+        shell: bash
+        env:
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          make check-release-commit \
+            COMMIT_MESSAGE="${COMMIT_MESSAGE}" \
+            ACTOR="${{ github.actor }}" \
+            OUTPUT="${GITHUB_OUTPUT}"
+
+  # ---------------------------------------------------------------------------
+  # scope-detection: derive scope, module_path, modules from the pushed diff
+  # ---------------------------------------------------------------------------
+  scope-detection:
+    name: scope-detection
+    needs: [skip-check]
+    if: ${{ needs.skip-check.outputs.should_skip != 'true' && github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    outputs:
+      scope: ${{ steps.detect.outputs.scope }}
+      module_path: ${{ steps.detect.outputs.module_path }}
+      modules: ${{ steps.detect.outputs.modules }}
+      version_only: ${{ steps.detect.outputs.version_only }}
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b  # v2.0.6
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+      - uses: ./.github/actions/setup-tools
+      - name: Resolve merged-PR scope-override
+        id: override
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          make check-merged-pr-override \
+            COMMIT_SHA="${{ github.sha }}" \
+            REPO="${{ github.repository }}" \
+            ORG="${{ github.repository_owner }}" \
+            OUTPUT="${GITHUB_OUTPUT}"
+      - name: Detect push scope
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          make scope-detect \
+            DIFF_RANGE="${{ github.event.before }}...HEAD" \
+            SCOPE_OVERRIDE="${{ steps.override.outputs.scope_override }}" \
+            OUTPUT="${GITHUB_OUTPUT}"
+
+  # ---------------------------------------------------------------------------
+  # validations: reuse the shared validations workflow (run_merge_simulation=false)
+  # iac/03 section 4.4
+  # ---------------------------------------------------------------------------
+  validations:
+    name: validations
+    needs: [skip-check, scope-detection]
+    if: ${{ needs.skip-check.outputs.should_skip != 'true' && github.actor != 'github-actions[bot]' }}
+    uses: ./.github/workflows/validations.yml
+    with:
+      scope: ${{ needs.scope-detection.outputs.scope }}
+      module_path: ${{ needs.scope-detection.outputs.module_path }}
+      modules: ${{ needs.scope-detection.outputs.modules }}
+      version_only: ${{ needs.scope-detection.outputs.version_only }}
+      run_merge_simulation: false
+      # Post-merge release path: skip the terratest-approval-gated tf-test. The PR already
+      # ran + approved terratest before merge; re-running it here would leave the release
+      # run waiting on the manual terratest-approval environment, deadlocking the
+      # release-pipeline lock (cancel-in-progress: false) and starving all releases.
+      run_terratest: false
+    secrets: inherit
+
+  # ---------------------------------------------------------------------------
+  # version-check: D17 anti-forgery + version derivation (iac/03 section 4.6)
+  # ---------------------------------------------------------------------------
+  version-check:
+    name: version-check
+    needs: [skip-check, scope-detection, validations]
+    # scope=all is a deliberate multi-module batch (admin override): it has no single module
+    # to auto-release, so version-check + release are skipped. The constituent modules are
+    # released individually by their own single-scope PRs.
+    if: >-
+      needs.skip-check.outputs.should_skip != 'true' &&
+      github.actor != 'github-actions[bot]' &&
+      needs.scope-detection.outputs.scope != 'terragrunt' &&
+      needs.scope-detection.outputs.scope != 'all'
+    runs-on: ubuntu-latest
+    outputs:
+      next_version: ${{ steps.calc.outputs.next_version }}
+      bump_type: ${{ steps.calc.outputs.bump_type }}
+      tag_prefix: ${{ steps.calc.outputs.tag_prefix }}
+      full_tag: ${{ steps.calc.outputs.full_tag }}
+      is_initial: ${{ steps.calc.outputs.is_initial }}
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b  # v2.0.6
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+      - uses: ./.github/actions/setup-tools
+      - name: Calculate version (D17 anti-forgery)
+        id: calc
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          SCOPE: ${{ needs.scope-detection.outputs.scope }}
+          MODULE_PATH: ${{ needs.scope-detection.outputs.module_path }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          make calculate-version \
+            COMMIT_SHA="${COMMIT_SHA}" \
+            COMMIT_MESSAGE="${COMMIT_MSG}" \
+            SCOPE="${SCOPE}" \
+            MODULE_PATH="${MODULE_PATH}" \
+            REPO="${REPO}" \
+            OUTPUT="${GITHUB_OUTPUT}"
+
+  # ---------------------------------------------------------------------------
+  # release: lock -> staleness check -> update-version -> changelog -> publish
+  # iac/03 section 4.7
+  # ---------------------------------------------------------------------------
+  release:
+    name: release
+    needs: [skip-check, scope-detection, version-check]
+    # scope=all (admin multi-module batch) has no single module to auto-release -- skip.
+    if: >-
+      needs.skip-check.outputs.should_skip != 'true' &&
+      github.actor != 'github-actions[bot]' &&
+      needs.scope-detection.outputs.scope != 'terragrunt' &&
+      needs.scope-detection.outputs.scope != 'all'
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b  # v2.0.6
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+      - uses: ./.github/actions/setup-tools
+      - name: Lock branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          make lock-branch ACTION=lock REPO="${REPO}" BRANCH="${BRANCH}"
+      - name: Fetch latest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          make git-fetch REMOTE=origin BRANCH="${{ github.ref_name }}"
+      - name: Check staleness
+        shell: bash
+        env:
+          MERGE_SHA: ${{ github.sha }}
+          MODULE_PATH: ${{ needs.scope-detection.outputs.module_path }}
+        run: |
+          set -euo pipefail
+          make check-staleness \
+            MERGE_SHA="${MERGE_SHA}" \
+            MODULE_PATH="${MODULE_PATH}"
+      - name: Reset to latest
+        shell: bash
+        run: |
+          set -euo pipefail
+          make git-reset-hard REF=origin/${{ github.ref_name }}
+      - name: Configure git identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          make git-identity \
+            USER="github-actions[bot]" \
+            EMAIL="github-actions[bot]@users.noreply.github.com"
+      - name: Update version files
+        shell: bash
+        env:
+          SCOPE: ${{ needs.scope-detection.outputs.scope }}
+          MODULE_PATH: ${{ needs.scope-detection.outputs.module_path }}
+          VERSION: ${{ needs.version-check.outputs.next_version }}
+        run: |
+          set -euo pipefail
+          make update-version \
+            SCOPE="${SCOPE}" \
+            MODULE_PATH="${MODULE_PATH}" \
+            VERSION="${VERSION}" \
+            REPO_ROOT="."
+      - name: Generate changelog
+        id: changelog
+        shell: bash
+        env:
+          VERSION: ${{ needs.version-check.outputs.next_version }}
+          BUMP_TYPE: ${{ needs.version-check.outputs.bump_type }}
+          PR_TITLE: ${{ github.event.head_commit.message }}
+          MODULE_PATH: ${{ needs.scope-detection.outputs.module_path }}
+          TAG_PREFIX: ${{ needs.version-check.outputs.tag_prefix }}
+        run: |
+          set -euo pipefail
+          make generate-changelog \
+            VERSION="${VERSION}" \
+            BUMP_TYPE="${BUMP_TYPE}" \
+            MODULE_PATH="${MODULE_PATH}" \
+            OUTPUT="${GITHUB_OUTPUT}"
+      - name: Publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG_PREFIX: ${{ needs.version-check.outputs.tag_prefix }}
+          VERSION: ${{ needs.version-check.outputs.next_version }}
+          FULL_TAG: ${{ needs.version-check.outputs.full_tag }}
+          CHANGELOG_PATH: ${{ steps.changelog.outputs.changelog_path }}
+        run: |
+          set -euo pipefail
+          make publish-release \
+            TAG_PREFIX="${TAG_PREFIX}" \
+            VERSION="${VERSION}" \
+            FULL_TAG="${FULL_TAG}" \
+            CHANGELOG_PATH="${CHANGELOG_PATH}"
+
+  # ---------------------------------------------------------------------------
+  # unlock: always run after release (iac/03 section 4.8)
+  # ---------------------------------------------------------------------------
+  unlock:
+    name: unlock
+    needs: [release]
+    if: ${{ always() && needs.release.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b  # v2.0.6
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+      - uses: ./.github/actions/setup-tools
+      - name: Unlock branch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          make lock-branch ACTION=unlock REPO="${REPO}" BRANCH="${BRANCH}"
