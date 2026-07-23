@@ -57,7 +57,7 @@ time otherwise). There are two logging-destination modes:
 
 ```hcl
 module "waf" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/waf-webacl?ref=providers/aws/primitives/waf-webacl/v1.0.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/waf-webacl?ref=providers/aws/primitives/waf-webacl/v1.0.0"
 
   name           = "telemetry-portal-waf"
   scope          = "CLOUDFRONT"

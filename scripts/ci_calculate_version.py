@@ -15,7 +15,7 @@ Environment variables:
     COMMIT_MSG:  The squash-commit subject line (validated but NOT the bump source).
     SCOPE:       'module', 'config', or 'terragrunt'.
     MODULE_PATH: The module directory path (required when SCOPE=module).
-    REPO:        The GitHub repository (e.g. 'example-org/telemetry-platform').
+    REPO:        The GitHub repository (e.g. 'matthew-dresden/telemetry-platform').
     OUTPUT:      Path to the GITHUB_OUTPUT file.
 
 Exit codes:
@@ -56,7 +56,7 @@ def _fetch_pr_title_from_api(repo: str, commit_sha: str) -> str | None:
     Returns None if the API returns an empty list (no associated PR).
 
     Args:
-        repo: The GitHub repository (e.g. 'example-org/telemetry-platform').
+        repo: The GitHub repository (e.g. 'matthew-dresden/telemetry-platform').
         commit_sha: The commit SHA to look up.
 
     Returns:

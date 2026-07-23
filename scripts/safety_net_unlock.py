@@ -19,7 +19,7 @@ Usage (invoked by `make safety-net-unlock`):
     uv run python -m scripts.safety_net_unlock --repo REPO --branch BRANCH
 
 Environment variables:
-    REPO:               e.g. 'example-org/telemetry-platform' (required)
+    REPO:               e.g. 'matthew-dresden/telemetry-platform' (required)
     BRANCH:             e.g. 'main' (required)
     GH_TOKEN:           GitHub App token with workflow + branch-protection read/write
     LOCK_MAX_AGE_MINUTES: integer -- minimum lock age before an unlock is allowed (required)
@@ -120,7 +120,7 @@ def check_in_progress_release_runs(repo: str, branch: str) -> int:
     --jq .total_count' filtered to in_progress status on the given branch.
 
     Args:
-        repo: The GitHub repository (e.g. 'example-org/telemetry-platform').
+        repo: The GitHub repository (e.g. 'matthew-dresden/telemetry-platform').
         branch: The branch name.
 
     Returns:

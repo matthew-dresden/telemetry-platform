@@ -1,6 +1,6 @@
 {
   "_source": "Captured from gh CLI: `gh variable list` + `gh api repos/<repo>/environments/<name>` (E10-F2-S3-T1).",
-  "repo": "example-org/telemetry-platform",
+  "repo": "matthew-dresden/telemetry-platform",
   "variables": {
     "AWS_DEFAULT_REGION": "us-east-1",
     "AWS_QA_TERRATEST_ROLE_ARN": "arn:aws:iam::333333333333:role/telemetry-platform-gha-terratest",

@@ -1,4 +1,4 @@
-module github.com/example-org/telemetry-platform/providers/aws/primitives/cost-anomaly
+module github.com/matthew-dresden/telemetry-platform/providers/aws/primitives/cost-anomaly
 
 go 1.26.4
 

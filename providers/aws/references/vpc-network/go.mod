@@ -1,4 +1,4 @@
-module github.com/example-org/telemetry-platform/providers/aws/references/vpc-network
+module github.com/matthew-dresden/telemetry-platform/providers/aws/references/vpc-network
 
 go 1.26.4
 

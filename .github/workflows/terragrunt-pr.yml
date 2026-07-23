@@ -109,7 +109,7 @@ jobs:
         run: |
           set -euo pipefail
           # terragrunt plan fetches the in-repo pinned child modules from the private
-          # git URL (git::https://github.com/example-org/telemetry-platform.git?ref=...).
+          # git URL (git::https://github.com/matthew-dresden/telemetry-platform.git?ref=...).
           # actions/checkout configures the token only in the repo-local git config, but
           # terraform/go-getter clones each module into a fresh temp dir without it and
           # fails with "could not read Username for https://github.com". Inject the job

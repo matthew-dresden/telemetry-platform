@@ -24,7 +24,7 @@ Assertions:
 
 FR-12 / AC-4 hardening assertions (E10-F3-S3-T1):
 - The prod tg-apply 'sub' is locked to exactly
-  'repo:example-org/telemetry-platform:environment:prod-apply'
+  'repo:matthew-dresden/telemetry-platform:environment:prod-apply'
   (spec section 4.12, AC-27, D-11).
 - The root dns-writer entry carries NO 'sub' field -- it uses role-chaining (D-11),
   not direct OIDC federation. The trust_policy_json is injected at apply time by the
@@ -289,12 +289,12 @@ def test_oidc_roles_json_contains_no_aws_access_key_patterns() -> None:
 # ---------------------------------------------------------------------------
 
 # The exact sub claim that locks the prod apply role to the GHA prod-apply environment.
-_PROD_APPLY_SUB = "repo:example-org/telemetry-platform:environment:prod-apply"
+_PROD_APPLY_SUB = "repo:matthew-dresden/telemetry-platform:environment:prod-apply"
 
 # The exact sub claim that locks the sandbox on-demand apply role to the GHA sandbox-apply
 # environment (Phase 0). Mirrors the prod env-lock so only a job running in the sandbox-apply
 # environment can assume the sandbox apply/destroy role.
-_SANDBOX_APPLY_SUB = "repo:example-org/telemetry-platform:environment:sandbox-apply"
+_SANDBOX_APPLY_SUB = "repo:matthew-dresden/telemetry-platform:environment:sandbox-apply"
 
 # Required FR-4 sweep action prefixes the QA terratest inline policy must cover.
 # Tagging API reads are needed for enumeration; deletion actions per resource class
@@ -374,7 +374,7 @@ def _statement_widens_to_star_star(stmt: dict[str, Any]) -> bool:
 def test_prod_tg_apply_sub_is_env_locked() -> None:
     """Prod tg-apply 'sub' must be locked to the prod-apply GHA environment (AC-4, spec 4.12).
 
-    The sub claim 'repo:example-org/telemetry-platform:environment:prod-apply' ensures
+    The sub claim 'repo:matthew-dresden/telemetry-platform:environment:prod-apply' ensures
     only GHA jobs running in the prod-apply environment (with required reviewers) can
     assume the apply role (AC-27, D-11).
     """

@@ -1,4 +1,4 @@
-module github.com/example-org/telemetry-platform/providers/aws/references/ecs-app-deploy
+module github.com/matthew-dresden/telemetry-platform/providers/aws/references/ecs-app-deploy
 
 go 1.26.4
 

@@ -14,7 +14,7 @@ The `create_table` gate (default `false`) controls whether an `aws_glue_catalog_
 
 ```hcl
 module "catalog" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/glue-catalog-database?ref=providers/aws/primitives/glue-catalog-database/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/glue-catalog-database?ref=providers/aws/primitives/glue-catalog-database/v0.1.0"
 
   database_name = "telemetry"
   description   = "Telemetry usage analytics catalog"

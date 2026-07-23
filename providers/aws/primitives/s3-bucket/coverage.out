@@ -1,4 +1,4 @@
 mode: set
-github.com/example-org/telemetry-platform/providers/aws/primitives/s3-bucket/tests/helpers/helpers.go:13.53,18.32 3 0
-github.com/example-org/telemetry-platform/providers/aws/primitives/s3-bucket/tests/helpers/helpers.go:18.32,20.3 1 0
-github.com/example-org/telemetry-platform/providers/aws/primitives/s3-bucket/tests/helpers/helpers.go:21.2,22.13 2 0
+github.com/matthew-dresden/telemetry-platform/providers/aws/primitives/s3-bucket/tests/helpers/helpers.go:13.53,18.32 3 0
+github.com/matthew-dresden/telemetry-platform/providers/aws/primitives/s3-bucket/tests/helpers/helpers.go:18.32,20.3 1 0
+github.com/matthew-dresden/telemetry-platform/providers/aws/primitives/s3-bucket/tests/helpers/helpers.go:21.2,22.13 2 0

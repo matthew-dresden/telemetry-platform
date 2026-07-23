@@ -11,7 +11,7 @@ Manages an optional Athena `aws_quicksight_data_source` pointed at the cost-capp
 
 ```hcl
 module "quicksight" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/quicksight?ref=providers/aws/primitives/quicksight/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/quicksight?ref=providers/aws/primitives/quicksight/v0.1.0"
 
   aws_account_id = "123456789012"
 

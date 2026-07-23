@@ -134,7 +134,7 @@ jobs:
         run: |
           set -euo pipefail
           # The prod-account copied units pin their child module sources to the
-          # in-repo git URL (git::https://github.com/example-org/
+          # in-repo git URL (git::https://github.com/matthew-dresden/
           # telemetry-platform.git?ref=...). actions/checkout configures the job
           # token only in the repo-local git config, but terraform/go-getter
           # clones each module into a fresh temp dir where that config does not

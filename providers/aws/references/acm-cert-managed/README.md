@@ -52,7 +52,7 @@ uses `${get_repo_root()}//providers/aws/references/acm-cert-managed` so the loca
 ```hcl
 # Pinned usage (use_pinned_module_sources = true, prod):
 module "acm_collector" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/references/acm-cert-managed?ref=providers/aws/references/acm-cert-managed/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/references/acm-cert-managed?ref=providers/aws/references/acm-cert-managed/v0.1.0"
 
   domain_name               = "collector-000.prod.telemetry.example.com"
   subject_alternative_names = ["collector.telemetry.example.com"]

@@ -35,7 +35,7 @@ times and is never affected by `use_pinned_module_sources`.
 
 By default (when `use_pinned_module_sources = false` in `account.hcl`), each in-repo source resolves
 to the relative path above. When `use_pinned_module_sources = true` (prod), the terragrunt leaf sets
-every `*_source` input to the pinned `git::https://github.com/example-org/telemetry-platform.git//<path>?ref=<path>/v<semver>`
+every `*_source` input to the pinned `git::https://github.com/matthew-dresden/telemetry-platform.git//<path>?ref=<path>/v<semver>`
 URL. The toggle flows from `account.hcl` through `_envcommon/collector-ingestion.hcl` (or the service
 that instantiates this reference) to the leaf. See `docs/terraform-module-sourcing.md` for the
 end-to-end workflow.
@@ -49,7 +49,7 @@ the leaf uses `${get_repo_root()}//providers/aws/references/vpc-network` so loca
 ```hcl
 # Pinned usage (use_pinned_module_sources = true, prod):
 module "vpc_network" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/references/vpc-network?ref=providers/aws/references/vpc-network/v1.0.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/references/vpc-network?ref=providers/aws/references/vpc-network/v1.0.0"
 
   vpc_name       = "telemetry-collector"
   vpc_cidr_block = "10.0.0.0/16"

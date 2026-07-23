@@ -110,7 +110,9 @@ def test_safety_net_unlock_check_in_progress_release_runs_returns_count(monkeypa
             stdout="2\n",
             stderr="",
         )
-        count = check_in_progress_release_runs(repo="example-org/telemetry-platform", branch="main")
+        count = check_in_progress_release_runs(
+            repo="matthew-dresden/telemetry-platform", branch="main"
+        )
     assert count == 2, f"Expected 2 in-progress runs, got {count!r}."
     mock_run.assert_called_once()
     cmd = mock_run.call_args[0][0]
@@ -131,7 +133,7 @@ def test_safety_net_unlock_check_in_progress_release_runs_raises_on_api_error(mo
             stderr="API rate limit exceeded",
         )
         with pytest.raises(RuntimeError) as exc_info:
-            check_in_progress_release_runs(repo="example-org/telemetry-platform", branch="main")
+            check_in_progress_release_runs(repo="matthew-dresden/telemetry-platform", branch="main")
 
     assert (
         "api" in str(exc_info.value).lower()
@@ -153,7 +155,7 @@ def test_safety_net_unlock_perform_unlock_calls_gh_api() -> None:
     """
     with patch("scripts.safety_net_unlock.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
-        perform_unlock(repo="example-org/telemetry-platform", branch="main")
+        perform_unlock(repo="matthew-dresden/telemetry-platform", branch="main")
     mock_run.assert_called()
     all_cmds = [call[0][0] for call in mock_run.call_args_list]
     assert any("gh" in cmd for cmd in all_cmds), (
@@ -170,7 +172,7 @@ def test_safety_net_unlock_perform_unlock_raises_on_failure() -> None:
     with patch("scripts.safety_net_unlock.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="forbidden")
         with pytest.raises(RuntimeError) as exc_info:
-            perform_unlock(repo="example-org/telemetry-platform", branch="main")
+            perform_unlock(repo="matthew-dresden/telemetry-platform", branch="main")
 
     assert "unlock" in str(exc_info.value).lower() or "error" in str(exc_info.value).lower(), (
         f"RuntimeError must mention unlock failure. Got: {exc_info.value!r}"
@@ -192,7 +194,7 @@ def test_safety_net_unlock_check_in_progress_raises_on_invalid_count(monkeypatch
     with patch("scripts.safety_net_unlock.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout="not-a-number\n", stderr="")
         with pytest.raises(RuntimeError) as exc_info:
-            check_in_progress_release_runs(repo="example-org/telemetry-platform", branch="main")
+            check_in_progress_release_runs(repo="matthew-dresden/telemetry-platform", branch="main")
     assert (
         "unexpected" in str(exc_info.value).lower() or "integer" in str(exc_info.value).lower()
     ), f"RuntimeError must mention unexpected value. Got: {exc_info.value!r}"
@@ -212,7 +214,7 @@ def test_safety_net_unlock_read_lock_info_returns_none_when_not_locked() -> None
             stdout="",
             stderr="Not Found (status: 404)",
         )
-        result = read_lock_info(repo="example-org/telemetry-platform", branch="main")
+        result = read_lock_info(repo="matthew-dresden/telemetry-platform", branch="main")
 
     assert result is None, f"read_lock_info must return None when not locked. Got: {result!r}."
 
@@ -232,7 +234,7 @@ def test_safety_net_unlock_read_lock_info_raises_on_unexpected_error() -> None:
             stderr="forbidden: 403 Unauthorized",
         )
         with pytest.raises(RuntimeError) as exc_info:
-            read_lock_info(repo="example-org/telemetry-platform", branch="main")
+            read_lock_info(repo="matthew-dresden/telemetry-platform", branch="main")
 
     assert "error" in str(exc_info.value).lower() or "failed" in str(exc_info.value).lower(), (
         f"RuntimeError must mention failure. Got: {exc_info.value!r}"
@@ -255,7 +257,7 @@ def test_safety_net_unlock_read_lock_info_returns_lock_info_when_locked() -> Non
 
     with patch("scripts.safety_net_unlock.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout=f"{marker}\n", stderr="")
-        result = read_lock_info(repo="example-org/telemetry-platform", branch="main")
+        result = read_lock_info(repo="matthew-dresden/telemetry-platform", branch="main")
 
     assert result is not None, "read_lock_info must return LockInfo when locked."
     assert result.run_id == "555", f"LockInfo.run_id must be '555'. Got: {result.run_id!r}."
@@ -275,7 +277,7 @@ def test_safety_net_unlock_read_lock_info_raises_on_invalid_json() -> None:
     with patch("scripts.safety_net_unlock.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout="not-valid-json\n", stderr="")
         with pytest.raises(RuntimeError) as exc_info:
-            read_lock_info(repo="example-org/telemetry-platform", branch="main")
+            read_lock_info(repo="matthew-dresden/telemetry-platform", branch="main")
 
     assert "json" in str(exc_info.value).lower() or "invalid" in str(exc_info.value).lower(), (
         f"RuntimeError must mention JSON parse error. Got: {exc_info.value!r}"
@@ -297,7 +299,7 @@ def test_safety_net_unlock_read_lock_info_raises_on_missing_keys() -> None:
     with patch("scripts.safety_net_unlock.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout=f"{marker}\n", stderr="")
         with pytest.raises(RuntimeError) as exc_info:
-            read_lock_info(repo="example-org/telemetry-platform", branch="main")
+            read_lock_info(repo="matthew-dresden/telemetry-platform", branch="main")
 
     assert "missing" in str(exc_info.value).lower() or "required" in str(exc_info.value).lower(), (
         f"RuntimeError must mention missing keys. Got: {exc_info.value!r}"
@@ -314,7 +316,7 @@ def test_safety_net_unlock_read_lock_info_returns_none_when_empty() -> None:
 
     with patch("scripts.safety_net_unlock.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout="null\n", stderr="")
-        result = read_lock_info(repo="example-org/telemetry-platform", branch="main")
+        result = read_lock_info(repo="matthew-dresden/telemetry-platform", branch="main")
 
     assert result is None, f"read_lock_info must return None for null value. Got: {result!r}."
 
@@ -326,7 +328,7 @@ def test_safety_net_unlock_main_exits_zero_when_not_locked(monkeypatch) -> None:
     AC-14: no-op exit 0 when branch is not locked.
     """
     monkeypatch.setenv("LOCK_MAX_AGE_MINUTES", "60")
-    monkeypatch.setenv("REPO", "example-org/telemetry-platform")
+    monkeypatch.setenv("REPO", "matthew-dresden/telemetry-platform")
     monkeypatch.setenv("BRANCH", "main")
 
     def fake_run(cmd: list[str], **kwargs: object) -> MagicMock:
@@ -353,7 +355,7 @@ def test_safety_net_unlock_main_retains_lock_when_active_release(monkeypatch) ->
     import time
 
     monkeypatch.setenv("LOCK_MAX_AGE_MINUTES", "60")
-    monkeypatch.setenv("REPO", "example-org/telemetry-platform")
+    monkeypatch.setenv("REPO", "matthew-dresden/telemetry-platform")
     monkeypatch.setenv("BRANCH", "main")
     monkeypatch.setenv("WORKFLOW_FILE_NAME", "main-validation.yml")
 
@@ -391,7 +393,7 @@ def test_safety_net_unlock_main_unlocks_when_conditions_met(monkeypatch) -> None
     import time
 
     monkeypatch.setenv("LOCK_MAX_AGE_MINUTES", "60")
-    monkeypatch.setenv("REPO", "example-org/telemetry-platform")
+    monkeypatch.setenv("REPO", "matthew-dresden/telemetry-platform")
     monkeypatch.setenv("BRANCH", "main")
     monkeypatch.setenv("WORKFLOW_FILE_NAME", "main-validation.yml")
 
@@ -425,7 +427,7 @@ def test_safety_net_unlock_main_fails_fast_when_lock_max_age_unset(monkeypatch) 
     value must cause an immediate failure, not a silent no-op.
     """
     monkeypatch.delenv("LOCK_MAX_AGE_MINUTES", raising=False)
-    monkeypatch.setenv("REPO", "example-org/telemetry-platform")
+    monkeypatch.setenv("REPO", "matthew-dresden/telemetry-platform")
     monkeypatch.setenv("BRANCH", "main")
 
     from scripts.safety_net_unlock import main
@@ -451,7 +453,7 @@ def test_safety_net_unlock_read_lock_info_returns_none_when_empty_string() -> No
 
     with patch("scripts.safety_net_unlock.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout="\n", stderr="")
-        result = read_lock_info(repo="example-org/telemetry-platform", branch="main")
+        result = read_lock_info(repo="matthew-dresden/telemetry-platform", branch="main")
 
     assert result is None, (
         f"read_lock_info must return None for empty string value. Got: {result!r}."
@@ -491,7 +493,7 @@ def test_safety_net_unlock_read_lock_info_raises_on_partial_marker(
     with patch("scripts.safety_net_unlock.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout=f"{marker_json}\n", stderr="")
         with pytest.raises(RuntimeError) as exc_info:
-            read_lock_info(repo="example-org/telemetry-platform", branch="main")
+            read_lock_info(repo="matthew-dresden/telemetry-platform", branch="main")
 
     assert expected_fragment.lower() in str(exc_info.value).lower(), (
         f"RuntimeError must mention {expected_fragment!r}. Got: {exc_info.value!r}"
@@ -513,7 +515,7 @@ def test_safety_net_unlock_main_retains_lock_when_age_too_low(monkeypatch) -> No
     import time
 
     monkeypatch.setenv("LOCK_MAX_AGE_MINUTES", "60")
-    monkeypatch.setenv("REPO", "example-org/telemetry-platform")
+    monkeypatch.setenv("REPO", "matthew-dresden/telemetry-platform")
     monkeypatch.setenv("BRANCH", "main")
     monkeypatch.setenv("WORKFLOW_FILE_NAME", "main-validation.yml")
 
@@ -551,7 +553,7 @@ def test_safety_net_unlock_main_exits_nonzero_on_runtime_error(monkeypatch) -> N
     AC-14: no silent failures in the main safety-net execution path.
     """
     monkeypatch.setenv("LOCK_MAX_AGE_MINUTES", "60")
-    monkeypatch.setenv("REPO", "example-org/telemetry-platform")
+    monkeypatch.setenv("REPO", "matthew-dresden/telemetry-platform")
     monkeypatch.setenv("BRANCH", "main")
 
     with patch("scripts.safety_net_unlock.subprocess.run") as mock_run:
@@ -583,7 +585,7 @@ def test_safety_net_unlock_main_exits_nonzero_when_lock_max_age_not_integer(
     AC-14 / B15: non-integer LOCK_MAX_AGE_MINUTES must fail fast.
     """
     monkeypatch.setenv("LOCK_MAX_AGE_MINUTES", "not-a-number")
-    monkeypatch.setenv("REPO", "example-org/telemetry-platform")
+    monkeypatch.setenv("REPO", "matthew-dresden/telemetry-platform")
     monkeypatch.setenv("BRANCH", "main")
 
     from scripts.safety_net_unlock import main
@@ -617,7 +619,7 @@ def test_safety_net_unlock_check_in_progress_raises_when_workflow_file_name_unse
     from scripts.safety_net_unlock import ConfigurationError, check_in_progress_release_runs
 
     with pytest.raises(ConfigurationError) as exc_info:
-        check_in_progress_release_runs(repo="example-org/telemetry-platform", branch="main")
+        check_in_progress_release_runs(repo="matthew-dresden/telemetry-platform", branch="main")
 
     assert "WORKFLOW_FILE_NAME" in str(exc_info.value), (
         f"ConfigurationError must name the missing variable. Got: {exc_info.value!r}"
@@ -635,7 +637,7 @@ def test_safety_net_unlock_main_exits_nonzero_when_workflow_file_name_unset(
     """
     monkeypatch.delenv("WORKFLOW_FILE_NAME", raising=False)
     monkeypatch.setenv("LOCK_MAX_AGE_MINUTES", "60")
-    monkeypatch.setenv("REPO", "example-org/telemetry-platform")
+    monkeypatch.setenv("REPO", "matthew-dresden/telemetry-platform")
     monkeypatch.setenv("BRANCH", "main")
 
     import json

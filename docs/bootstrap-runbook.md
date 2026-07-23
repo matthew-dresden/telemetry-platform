@@ -214,20 +214,20 @@ fast at parse time. After each apply, note the output role ARNs for Step 4.
 ### Role trust-policy notes
 
 - `telemetry-platform-gha-tg-plan` (sandbox, prod, root): OIDC trust with a broad subject
-  (`repo:example-org/telemetry-platform:*`). Read-only plan permissions on the remote
+  (`repo:matthew-dresden/telemetry-platform:*`). Read-only plan permissions on the remote
   state of the account it lives in (the root and prod plan roles additionally grant
   cross-account `kms:Decrypt`/S3 read on sibling state so a cross-env PR can load
   dependency state).
 - `telemetry-platform-gha-terratest` (QA): OIDC trust with subject
-  `repo:example-org/telemetry-platform:*`. The test job's reviewer gate is enforced by
+  `repo:matthew-dresden/telemetry-platform:*`. The test job's reviewer gate is enforced by
   the `terratest-approval` GitHub environment, not by the role trust.
 - `telemetry-platform-gha-tg-apply` (prod): OIDC trust restricted to subject
-  `repo:example-org/telemetry-platform:environment:prod-apply`. The GitHub environment
+  `repo:matthew-dresden/telemetry-platform:environment:prod-apply`. The GitHub environment
   name and the trust-policy claim are the identical literal `prod-apply`. Its
   `AdministratorAccess` grant + the dns-writer assume-role inline policy are added by the prod
   `oidc-bootstrap` leaf as a deep-merge override (not stored in `oidc-roles.json`).
 - `telemetry-platform-gha-tg-apply` (sandbox): the on-demand ephemeral apply/destroy role. OIDC
-  trust restricted to subject `repo:example-org/telemetry-platform:environment:sandbox-apply`
+  trust restricted to subject `repo:matthew-dresden/telemetry-platform:environment:sandbox-apply`
   (environment name and trust-policy claim are the identical literal `sandbox-apply`). It carries
   `AdministratorAccess` (create side) + a `sandbox-teardown-sweep` inline policy (delete/sweep,
   mirroring the QA terratest sweep) so a `workflow_dispatch` run can stand the full sandbox stack
@@ -244,7 +244,7 @@ fast at parse time. After each apply, note the output role ARNs for Step 4.
 ## Step 4 — Publish outputs to repository Actions variables
 
 After `oidc-bootstrap` and `state-bootstrap` have applied, set the following GitHub Actions
-**repository variables** on `example-org/telemetry-platform`:
+**repository variables** on `matthew-dresden/telemetry-platform`:
 
 | Variable | Value | Source |
 |----------|-------|--------|

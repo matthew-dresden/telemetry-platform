@@ -26,7 +26,7 @@ violation_messages(test_input) := {msg |
 test_tools_telemetry_pinned_ref_passes if {
 	files := {"modules/m/main.tf": concat("\n", [
 		"module \"kms\" {",
-		"  source = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key?ref=providers/aws/primitives/kms-key/v1.0.0\"",
+		"  source = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms-key?ref=providers/aws/primitives/kms-key/v1.0.0\"",
 		"}",
 	])}
 	test_input := fixtures.mock_module_input("modules/m", files)
@@ -64,12 +64,12 @@ test_third_party_host_denied if {
 	"Module source must be from this monorepo" in violation_messages(test_input)
 }
 
-# Same example-org org but a non-allowlisted repo is rejected (allowlist is
+# Same matthew-dresden org but a non-allowlisted repo is rejected (allowlist is
 # the two specific repos, not the whole org).
 test_other_repo_denied if {
 	files := {"modules/m/main.tf": concat("\n", [
 		"module \"bad\" {",
-		"  source = \"git::https://github.com/example-org/other-repo.git//providers/aws/primitives/kms?ref=providers/aws/primitives/kms/v1.0.0\"",
+		"  source = \"git::https://github.com/matthew-dresden/other-repo.git//providers/aws/primitives/kms?ref=providers/aws/primitives/kms/v1.0.0\"",
 		"}",
 	])}
 	test_input := fixtures.mock_module_input("modules/m", files)
@@ -85,7 +85,7 @@ test_other_repo_denied if {
 test_monorepo_missing_ref_denied if {
 	files := {"modules/m/main.tf": concat("\n", [
 		"module \"kms\" {",
-		"  source = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key\"",
+		"  source = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms-key\"",
 		"}",
 	])}
 	test_input := fixtures.mock_module_input("modules/m", files)
@@ -97,7 +97,7 @@ test_monorepo_missing_ref_denied if {
 test_monorepo_non_semver_ref_denied if {
 	files := {"modules/m/main.tf": concat("\n", [
 		"module \"kms\" {",
-		"  source = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key?ref=main\"",
+		"  source = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms-key?ref=main\"",
 		"}",
 	])}
 	test_input := fixtures.mock_module_input("modules/m", files)
@@ -280,7 +280,7 @@ test_var_git_url_default_denied if {
 		"variable \"glue_source\" {",
 		"  type    = string",
 		"  const   = true",
-		"  default = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/glue?ref=providers/aws/primitives/glue/v1.0.0\"",
+		"  default = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/glue?ref=providers/aws/primitives/glue/v1.0.0\"",
 		"}",
 	])}
 	test_input := fixtures.mock_module_input("modules/m", files)
@@ -442,7 +442,7 @@ test_multi_source_prod_context_one_unpinned_denied if {
 		"variable \"first_source\" {",
 		"  type    = string",
 		"  const   = true",
-		"  default = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/first?ref=providers/aws/primitives/first/v1.0.0\"",
+		"  default = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/first?ref=providers/aws/primitives/first/v1.0.0\"",
 		"}",
 		"variable \"second_source\" {",
 		"  type    = string",
@@ -468,7 +468,7 @@ test_is_var_driven_source_false_for_literal if {
 }
 
 test_is_monorepo_source_true_for_tools_telemetry if {
-	policy.is_monorepo_source("source = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms?ref=x\"")
+	policy.is_monorepo_source("source = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms?ref=x\"")
 }
 
 test_is_monorepo_source_false_for_third_party if {
@@ -476,11 +476,11 @@ test_is_monorepo_source_false_for_third_party if {
 }
 
 test_has_ref_parameter_true_for_semver if {
-	policy.has_ref_parameter("source = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms?ref=providers/aws/primitives/kms/v1.2.3\"")
+	policy.has_ref_parameter("source = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms?ref=providers/aws/primitives/kms/v1.2.3\"")
 }
 
 test_has_ref_parameter_false_without_semver if {
-	not policy.has_ref_parameter("source = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms?ref=main\"")
+	not policy.has_ref_parameter("source = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms?ref=main\"")
 }
 
 test_var_names_from_source_extracts_all if {

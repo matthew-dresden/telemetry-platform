@@ -6,7 +6,7 @@ import data.tests.opa.unit.helpers as helpers
 # Test (a): telemetry-platform source WITH ref passes -- no violation
 test_tools_telemetry_source_with_ref_passes if {
 	module_path := "modules/test-module"
-	files := {"modules/test-module/main.tf": "module \"local\" {\n  source = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key?ref=providers/aws/primitives/kms-key/v1.0.0\"\n}"}
+	files := {"modules/test-module/main.tf": "module \"local\" {\n  source = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms-key?ref=providers/aws/primitives/kms-key/v1.0.0\"\n}"}
 	test_input := helpers.mock_terraform_module_input(module_path, files)
 
 	violations := policy.violation with input as test_input
@@ -28,7 +28,7 @@ test_terraform_modules_source_with_ref_passes if {
 # Test: telemetry-platform source with ref accepted by has_ref_parameter helper
 test_tools_telemetry_ref_with_semver_passes if {
 	module_path := "modules/test-module"
-	files := {"modules/test-module/main.tf": "module \"ref\" {\n  source = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/references/vpc-network?ref=providers/aws/references/vpc-network/v2.1.0\"\n}"}
+	files := {"modules/test-module/main.tf": "module \"ref\" {\n  source = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/references/vpc-network?ref=providers/aws/references/vpc-network/v2.1.0\"\n}"}
 	test_input := helpers.mock_terraform_module_input(module_path, files)
 
 	violations := policy.violation with input as test_input
@@ -61,7 +61,7 @@ test_third_party_host_denied if {
 # Test: a wildcard or arbitrary org host is rejected -- only allowlisted orgs allowed
 test_arbitrary_org_host_denied if {
 	module_path := "modules/test-module"
-	files := {"modules/test-module/main.tf": "module \"bad\" {\n  source = \"git::https://github.com/example-org/other-repo.git//providers/aws/primitives/kms?ref=providers/aws/primitives/kms/v1.0.0\"\n}"}
+	files := {"modules/test-module/main.tf": "module \"bad\" {\n  source = \"git::https://github.com/matthew-dresden/other-repo.git//providers/aws/primitives/kms?ref=providers/aws/primitives/kms/v1.0.0\"\n}"}
 	test_input := helpers.mock_terraform_module_input(module_path, files)
 
 	violations := policy.violation with input as test_input
@@ -72,7 +72,7 @@ test_arbitrary_org_host_denied if {
 # Test (d): telemetry-platform source WITHOUT /v<semver> ref is denied -- pinned-ref required
 test_tools_telemetry_source_missing_ref_denied if {
 	module_path := "modules/test-module"
-	files := {"modules/test-module/main.tf": "module \"unref\" {\n  source = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key\"\n}"}
+	files := {"modules/test-module/main.tf": "module \"unref\" {\n  source = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms-key\"\n}"}
 	test_input := helpers.mock_terraform_module_input(module_path, files)
 
 	violations := policy.violation with input as test_input
@@ -83,7 +83,7 @@ test_tools_telemetry_source_missing_ref_denied if {
 # Test: telemetry-platform source with malformed ref (no /v<semver>) is denied
 test_tools_telemetry_source_invalid_ref_denied if {
 	module_path := "modules/test-module"
-	files := {"modules/test-module/main.tf": "module \"badref\" {\n  source = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key?ref=main\"\n}"}
+	files := {"modules/test-module/main.tf": "module \"badref\" {\n  source = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms-key?ref=main\"\n}"}
 	test_input := helpers.mock_terraform_module_input(module_path, files)
 
 	violations := policy.violation with input as test_input
@@ -223,7 +223,7 @@ test_var_driven_source_default_git_url_fails if {
 		"variable \"glue_catalog_source\" {",
 		"  type    = string",
 		"  const   = true",
-		"  default = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/glue-catalog-database?ref=providers/aws/primitives/glue-catalog-database/v1.0.0\"",
+		"  default = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/glue-catalog-database?ref=providers/aws/primitives/glue-catalog-database/v1.0.0\"",
 		"}",
 	])}
 	test_input := helpers.mock_terraform_module_input(module_path, files)
@@ -384,7 +384,7 @@ test_prod_context_inrepo_pinned_default_passes if {
 		"variable \"glue_catalog_source\" {",
 		"  type    = string",
 		"  const   = true",
-		"  default = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/glue-catalog-database?ref=providers/aws/primitives/glue-catalog-database/v1.0.0\"",
+		"  default = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/glue-catalog-database?ref=providers/aws/primitives/glue-catalog-database/v1.0.0\"",
 		"}",
 	])}
 	test_input := object.union(
@@ -526,7 +526,7 @@ test_multi_source_one_git_url_default_fails if {
 		"variable \"bad_source\" {",
 		"  type    = string",
 		"  const   = true",
-		"  default = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/bad?ref=providers/aws/primitives/bad/v1.0.0\"",
+		"  default = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/bad?ref=providers/aws/primitives/bad/v1.0.0\"",
 		"}",
 	])}
 	test_input := helpers.mock_terraform_module_input(module_path, files)
@@ -550,7 +550,7 @@ test_multi_source_prod_context_one_unpinned_fails if {
 		"variable \"first_source\" {",
 		"  type    = string",
 		"  const   = true",
-		"  default = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/first?ref=providers/aws/primitives/first/v1.0.0\"",
+		"  default = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/first?ref=providers/aws/primitives/first/v1.0.0\"",
 		"}",
 		"variable \"second_source\" {",
 		"  type    = string",
@@ -582,12 +582,12 @@ test_multi_source_prod_context_both_pinned_no_prod_gate if {
 		"variable \"first_source\" {",
 		"  type    = string",
 		"  const   = true",
-		"  default = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/first?ref=providers/aws/primitives/first/v1.0.0\"",
+		"  default = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/first?ref=providers/aws/primitives/first/v1.0.0\"",
 		"}",
 		"variable \"second_source\" {",
 		"  type    = string",
 		"  const   = true",
-		"  default = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/second?ref=providers/aws/primitives/second/v2.0.0\"",
+		"  default = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/second?ref=providers/aws/primitives/second/v2.0.0\"",
 		"}",
 	])}
 	test_input := object.union(

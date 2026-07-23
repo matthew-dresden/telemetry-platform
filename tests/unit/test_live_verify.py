@@ -1802,7 +1802,7 @@ class TestRepoSettingsCheck:
                 oidc_roles_data=json.loads(OIDC_ROLES_JSON_PATH.read_text()),
                 boto3_module=mock_boto3,
                 gh_runner=mock_gh_runner,
-                gh_repo="example-org/telemetry-platform",
+                gh_repo="matthew-dresden/telemetry-platform",
             )
             exit_code = runner.run()
 
@@ -1844,7 +1844,7 @@ class TestRepoSettingsCheck:
                 oidc_roles_data=json.loads(OIDC_ROLES_JSON_PATH.read_text()),
                 boto3_module=mock_boto3,
                 gh_runner=mock_gh_runner,
-                gh_repo="example-org/telemetry-platform",
+                gh_repo="matthew-dresden/telemetry-platform",
             )
             exit_code = runner.run()
 
@@ -1883,7 +1883,7 @@ class TestRepoSettingsCheck:
                 oidc_roles_data=json.loads(OIDC_ROLES_JSON_PATH.read_text()),
                 boto3_module=mock_boto3,
                 gh_runner=mock_gh_runner,
-                gh_repo="example-org/telemetry-platform",
+                gh_repo="matthew-dresden/telemetry-platform",
             )
             exit_code = runner.run()
 
@@ -2881,7 +2881,7 @@ class TestOidcRolesAdditionalBranches:
                                         },
                                         "StringLike": {
                                             "token.actions.githubusercontent.com:sub": (
-                                                "repo:example-org/telemetry-platform:*"
+                                                "repo:matthew-dresden/telemetry-platform:*"
                                             )
                                         },
                                     },
@@ -4113,7 +4113,7 @@ class TestRepoSettingsAdditionalBranches:
                 oidc_roles_data=json.loads(OIDC_ROLES_JSON_PATH.read_text()),
                 boto3_module=mock_boto3,
                 gh_runner=mock_gh_runner,
-                gh_repo="example-org/telemetry-platform",
+                gh_repo="matthew-dresden/telemetry-platform",
             )
             exit_code = runner.run()
 
@@ -4154,7 +4154,7 @@ class TestRepoSettingsAdditionalBranches:
                 oidc_roles_data=json.loads(OIDC_ROLES_JSON_PATH.read_text()),
                 boto3_module=mock_boto3,
                 gh_runner=mock_gh_runner,
-                gh_repo="example-org/telemetry-platform",
+                gh_repo="matthew-dresden/telemetry-platform",
             )
             exit_code = runner.run()
 
@@ -4186,7 +4186,7 @@ class TestRepoSettingsAdditionalBranches:
                 oidc_roles_data=json.loads(OIDC_ROLES_JSON_PATH.read_text()),
                 boto3_module=mock_boto3,
                 gh_runner=mock_gh_runner,
-                gh_repo="example-org/telemetry-platform",
+                gh_repo="matthew-dresden/telemetry-platform",
             )
             exit_code = runner.run()
 
@@ -4235,7 +4235,7 @@ class TestRepoSettingsAdditionalBranches:
                 oidc_roles_data=json.loads(OIDC_ROLES_JSON_PATH.read_text()),
                 boto3_module=mock_boto3,
                 gh_runner=mock_gh_runner,
-                gh_repo="example-org/telemetry-platform",
+                gh_repo="matthew-dresden/telemetry-platform",
             )
             exit_code = runner.run()
 
@@ -5652,7 +5652,7 @@ class TestRepoSettingsJsonDecodeError:
                 oidc_roles_data=json.loads(OIDC_ROLES_JSON_PATH.read_text()),
                 boto3_module=mock_boto3,
                 gh_runner=mock_gh_runner,
-                gh_repo="example-org/telemetry-platform",
+                gh_repo="matthew-dresden/telemetry-platform",
             )
             exit_code = runner.run()
 

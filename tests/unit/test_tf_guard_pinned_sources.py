@@ -828,7 +828,7 @@ def test_main_entry_point_exits_zero_when_all_valid(tmp_path: pathlib.Path) -> N
 # ---------------------------------------------------------------------------
 
 _PINNED_TRUE_BRANCH = (
-    "git::https://github.com/example-org/telemetry-platform.git"
+    "git::https://github.com/matthew-dresden/telemetry-platform.git"
     "//providers/aws/references/analytics"
     "?ref=providers/aws/references/analytics/v1.0.0"
 )
@@ -893,7 +893,7 @@ def test_collect_leaf_sources_finds_ternary_source(tmp_path: pathlib.Path) -> No
             "analytics ref with pinned semver",
         ),
         (
-            "git::https://github.com/example-org/telemetry-platform.git"
+            "git::https://github.com/matthew-dresden/telemetry-platform.git"
             "//providers/aws/references/identity"
             "?ref=providers/aws/references/identity/v1.0.0",
             "identity ref with pinned semver",
@@ -928,7 +928,7 @@ def test_run_source_guard_ternary_toggle_true_with_pinned_true_branch_passes(
             "true-branch is a local get_repo_root source (unpinned)",
         ),
         (
-            "git::https://github.com/example-org/telemetry-platform.git"
+            "git::https://github.com/matthew-dresden/telemetry-platform.git"
             "//providers/aws/references/analytics"
             "?ref=main",
             "true-branch has floating branch ref (not semver)",

@@ -11,7 +11,7 @@ Manages a set of VPC endpoints (Interface, Gateway, and GatewayLoadBalancer type
 
 ```hcl
 module "vpc_endpoint" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/vpc-endpoint?ref=providers/aws/primitives/vpc-endpoint/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/vpc-endpoint?ref=providers/aws/primitives/vpc-endpoint/v0.1.0"
 
   vpc_id = module.vpc.vpc_id
   endpoints = [

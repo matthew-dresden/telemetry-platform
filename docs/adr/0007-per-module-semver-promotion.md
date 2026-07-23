@@ -28,6 +28,13 @@ immutable artifact is cut. Two facts shape the design:
 }
 ```
 
+This ADR records the target shape. Until the release pipeline has cut the
+`providers/**/v<semver>` tags the prod leaves pin, `prod` is set to `false` in
+`terragrunt/common/env_accounts.json` so prod resolves the in-repo module like every
+other env — the tags do not exist yet, and a `true` toggle would fail every prod
+`terragrunt init`. See
+[../terraform-module-sourcing.md](../terraform-module-sourcing.md#the-toggle).
+
 If a reference module hardcoded a pinned git URL for each child, no one could run
 `terraform init -backend=false`, `terraform validate`, or Terratest against that
 module until the `?ref=` tag already existed in the remote. Every iteration would
@@ -51,7 +58,7 @@ Promote a module change through three moves:
   `use_pinned_module_sources = true`, so its leaves reference the immutable URL.
 
 ```hcl
-source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/route53-record?ref=providers/aws/primitives/route53-record/v1.0.2"
+source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/route53-record?ref=providers/aws/primitives/route53-record/v1.0.2"
 ```
 
 ## Consequences

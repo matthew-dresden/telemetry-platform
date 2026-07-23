@@ -20,7 +20,7 @@ Used as the common baseline for all S3 buckets in the telemetry-collector platfo
 
 ```hcl
 module "s3_bucket" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/s3-bucket?ref=providers/aws/primitives/s3-bucket/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/s3-bucket?ref=providers/aws/primitives/s3-bucket/v0.1.0"
 
   bucket_name = "my-data-lake-raw"
   kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/my-key-id"

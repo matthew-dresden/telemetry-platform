@@ -1,5 +1,6 @@
 {
   "_comment": "Env-keyed account + named-profile resolution (abstracts the AWS account OUT of the folder path). root.hcl resolves aws_account_id + aws_profile + use_pinned_module_sources from (environment_name, account_role). account_role defaults to 'service' (the env's own account); units that run in the shared DNS-owner account declare account_role='dns_owner' via an account-role.hcl. accounts.json stays account-id-keyed and is looked up by the RESOLVED account_id for per-account config (deploy_role, is_dns_owner, dns_owner_zone_id) so all existing consumers (scripts, common.hcl guard, _envcommon) are unaffected. Copying an env folder to a new env-class works with zero edits: the account follows from this file keyed by the env-folder basename. Fill in your own 12-digit account ids and named AWS profiles.",
+  "_comment_use_pinned_module_sources": "use_pinned_module_sources is false for EVERY env while this repository has published no per-module release tags. A true value makes a leaf resolve its module from git::https://<host>/<org>/<repo>.git//<path>?ref=<path>/v<semver>; none of those tags exist yet (first release is 0.1.0 and no providers/**/v* tag has been pushed), so every pinned source would 404 at `terragrunt init`. Same reason _envcommon/oidc-bootstrap.hcl pins bootstrap_use_pinned_module_sources = false. Flip prod back to true in this one place once docs/module-promotion-flow.md's promotion flow has published the per-module tags the prod leaves reference.",
   "envs": {
     "sandbox": {
       "account_id": "222222222222",
@@ -9,7 +10,7 @@
     "prod": {
       "account_id": "111111111111",
       "aws_profile": "telemetry-prod",
-      "use_pinned_module_sources": true
+      "use_pinned_module_sources": false
     },
     "qa": {
       "account_id": "333333333333",

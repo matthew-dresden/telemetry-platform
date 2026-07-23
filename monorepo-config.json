@@ -105,9 +105,9 @@
   "workflow_tests": {
     "test_module": "providers/aws/primitives/s3-bucket",
     "test_module_type": "primitive",
-    "repository": "example-org/telemetry-platform",
+    "repository": "matthew-dresden/telemetry-platform",
     "default_inputs": {
-      "code_owners": "example-org/platform-team",
+      "code_owners": "matthew-dresden/platform-team",
       "dryrun": "true"
     },
     "variations": [

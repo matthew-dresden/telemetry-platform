@@ -21,11 +21,17 @@ Two facts shape the entire flow:
   `terragrunt/common/env_accounts.json`. When the value is `false`, a leaf sources the
   in-repo module by relative path via `get_repo_root()`; when `true`, a leaf pins an
   immutable git tag with `?ref=`. Today the values are: `qa = false`, `sandbox = false`,
-  `prod = true`.
+  `prod = false` — see the note below.
 
 The consequence: **only prod consumes a released tag.** The `qa` and `sandbox` accounts run
 the module straight from the working tree. That is exactly what lets a change be proven
 before any release tag exists.
+
+**Prod is not pinned yet.** No `providers/**/v<semver>` tag has been published from this
+repository (the first release is `0.1.0`), so the tags the prod leaves pin do not exist and a
+`prod = true` toggle would fail every prod `terragrunt init` with "module not found". `prod` is
+therefore `false` in `terragrunt/common/env_accounts.json` until this flow has cut the tags the
+prod leaves reference; flipping it back is a one-line change in that file, with no leaf edits.
 
 ## Promotion sequence
 
@@ -71,12 +77,12 @@ and the merge-method requirement are in [release-pipeline.md](release-pipeline.m
 
 ### Prod pins the release
 
-Production is the one environment that consumes the released tag. Because the `prod` account
-resolves `use_pinned_module_sources = true`, its leaves reference the immutable URL — for
-example:
+Production is the one environment that consumes the released tag. Once the `prod` account
+resolves `use_pinned_module_sources = true` (it is `false` until the tags exist — see above),
+its leaves reference the immutable URL — for example:
 
 ```hcl
-source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/route53-record?ref=providers/aws/primitives/route53-record/v1.0.2"
+source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/route53-record?ref=providers/aws/primitives/route53-record/v1.0.2"
 ```
 
 A prod apply against a tag that the release pipeline has not published fails loudly at

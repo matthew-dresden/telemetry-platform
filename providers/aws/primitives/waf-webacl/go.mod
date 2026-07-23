@@ -1,4 +1,4 @@
-module github.com/example-org/telemetry-platform/providers/aws/primitives/waf-webacl
+module github.com/matthew-dresden/telemetry-platform/providers/aws/primitives/waf-webacl
 
 go 1.26.4
 

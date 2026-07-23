@@ -20,7 +20,7 @@ Used as the shared edge primitive by both the `collector-ingestion` and `portal`
 
 ```hcl
 module "cloudfront" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/cloudfront-distribution?ref=providers/aws/primitives/cloudfront-distribution/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/cloudfront-distribution?ref=providers/aws/primitives/cloudfront-distribution/v0.1.0"
 
   aliases             = ["collector.prod.telemetry.example.com"]
   acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/my-cert-id"

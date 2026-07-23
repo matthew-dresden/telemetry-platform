@@ -64,7 +64,7 @@ the leaf uses `${get_repo_root()}//providers/aws/references/dns-prod-zone` so lo
 ```hcl
 # Pinned usage (use_pinned_module_sources = true, prod):
 module "dns_prod_zone" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/references/dns-prod-zone?ref=providers/aws/references/dns-prod-zone/v1.0.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/references/dns-prod-zone?ref=providers/aws/references/dns-prod-zone/v1.0.0"
 
   zone_name = "prod.telemetry.example.com"
   kms_alias = "telemetry-config"
@@ -152,7 +152,7 @@ resolves to the in-repo local relative path without network access. Callers do n
 
 By default (when `use_pinned_module_sources = false` in `account.hcl`), each source resolves to the
 relative in-repo path above. When `use_pinned_module_sources = true` (prod), the terragrunt leaf
-sets every `*_source` input to the pinned `git::https://github.com/example-org/telemetry-platform.git//<path>?ref=<path>/v<semver>`
+sets every `*_source` input to the pinned `git::https://github.com/matthew-dresden/telemetry-platform.git//<path>?ref=<path>/v<semver>`
 URL. The toggle flows from `account.hcl` through `_envcommon/dns-prod-zone.hcl` to the leaf.
 See `docs/terraform-module-sourcing.md` for the end-to-end workflow.
 

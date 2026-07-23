@@ -13,7 +13,7 @@ Implements the platform decision (D11) to use SSM Parameter Store over Secrets M
 
 ```hcl
 module "ssm_parameter" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/ssm-parameter?ref=providers/aws/primitives/ssm-parameter/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/ssm-parameter?ref=providers/aws/primitives/ssm-parameter/v0.1.0"
 
   name  = "/telemetry/prod/ingest/waf-rate-limit"
   type  = "String"

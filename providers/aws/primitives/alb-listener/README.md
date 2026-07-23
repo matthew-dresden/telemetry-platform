@@ -14,7 +14,7 @@ This platform's collector ALB uses an HTTPS listener (HTTPS-only); an HTTP liste
 
 ```hcl
 module "alb_listener" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/alb-listener?ref=providers/aws/primitives/alb-listener/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/alb-listener?ref=providers/aws/primitives/alb-listener/v0.1.0"
 
   load_balancer_arn = module.alb.alb_arn
 

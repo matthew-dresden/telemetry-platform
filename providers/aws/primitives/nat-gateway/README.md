@@ -12,7 +12,7 @@ Manages a set of NAT gateways with their associated Elastic IPs across availabil
 
 ```hcl
 module "nat_gateway" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/nat-gateway?ref=providers/aws/primitives/nat-gateway/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/nat-gateway?ref=providers/aws/primitives/nat-gateway/v0.1.0"
 
   nat_gateways = [
     {

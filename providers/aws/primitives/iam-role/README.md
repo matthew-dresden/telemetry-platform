@@ -15,7 +15,7 @@ Used for provisioning ECS task execution roles, Firehose delivery roles, OIDC-fe
 
 ```hcl
 module "iam_role" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/iam-role?ref=providers/aws/primitives/iam-role/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/iam-role?ref=providers/aws/primitives/iam-role/v0.1.0"
 
   name = "telemetry-ecs-execution"
   assume_role_policy_json = jsonencode({

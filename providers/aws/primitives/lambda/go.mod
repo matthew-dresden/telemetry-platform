@@ -1,4 +1,4 @@
-module github.com/example-org/telemetry-platform/providers/aws/primitives/lambda
+module github.com/matthew-dresden/telemetry-platform/providers/aws/primitives/lambda
 
 go 1.26.4
 

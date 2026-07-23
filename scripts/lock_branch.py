@@ -78,7 +78,7 @@ def write_lock_marker(repo: str, branch: str, run_id: str) -> None:
     in the repo variable BRANCH_LOCK_RUN_ID_<BRANCH>.
 
     Args:
-        repo: The GitHub repository (e.g. 'example-org/telemetry-platform').
+        repo: The GitHub repository (e.g. 'matthew-dresden/telemetry-platform').
         branch: The branch being locked.
         run_id: The GitHub Actions run ID that owns the lock.
 

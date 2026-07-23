@@ -13,7 +13,7 @@ Used for creating hosted zones for the telemetry-collector platform DNS infrastr
 
 ```hcl
 module "route53_zone" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/route53-zone?ref=providers/aws/primitives/route53-zone/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/route53-zone?ref=providers/aws/primitives/route53-zone/v0.1.0"
 
   zone_name = "example.com"
   tags = {

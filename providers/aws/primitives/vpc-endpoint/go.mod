@@ -1,4 +1,4 @@
-module github.com/example-org/telemetry-platform/providers/aws/primitives/vpc-endpoint
+module github.com/matthew-dresden/telemetry-platform/providers/aws/primitives/vpc-endpoint
 
 go 1.26.4
 

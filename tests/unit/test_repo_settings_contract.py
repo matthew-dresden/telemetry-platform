@@ -1,13 +1,13 @@
 """Unit tests for the GitHub repo-settings contract (FR-8, spec section 4.8, AC #29).
 
 These tests assert the repo Actions variables + environments contract for
-example-org/telemetry-platform against a committed gh JSON fixture
+matthew-dresden/telemetry-platform against a committed gh JSON fixture
 (tests/unit/fixtures/repo_settings_gh.json) so the repo-settings contract is
 regression-checked offline (spec section 4.8/10, E10-F2-S3-T1).
 
 The fixture is captured from real gh output:
-- variables: `gh variable list --repo example-org/telemetry-platform --json name,value`
-- environments: `gh api repos/example-org/telemetry-platform/environments/<name>`
+- variables: `gh variable list --repo matthew-dresden/telemetry-platform --json name,value`
+- environments: `gh api repos/matthew-dresden/telemetry-platform/environments/<name>`
   (only the protection-rule type strings are retained, which is sufficient to assert
   existence and the prod-apply required_reviewers rule, and avoids storing any
   reviewer login).
@@ -172,7 +172,7 @@ def test_superseded_account_id_variables_are_absent(name: str) -> None:
         f"Superseded variable '{name}' must NOT be set on the repo (doc-03 supersession, "
         f"spec section 4.8). The apply role is path-resolved via "
         "terragrunt/common/accounts.json. Remove it with "
-        f"`gh variable delete {name} --repo example-org/telemetry-platform`."
+        f"`gh variable delete {name} --repo matthew-dresden/telemetry-platform`."
     )
 
 

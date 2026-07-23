@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/example-org/telemetry-platform/providers/aws/primitives/s3-bucket/tests/helpers"
+	"github.com/matthew-dresden/telemetry-platform/providers/aws/primitives/s3-bucket/tests/helpers"
 	"github.com/gruntwork-io/terratest/modules/terraform"
 	"github.com/matthew-dresden/terraform-terratest-framework/pkg/assertions"
 	"github.com/matthew-dresden/terraform-terratest-framework/pkg/testctx"

@@ -16,7 +16,7 @@ Every entry in `default_capacity_provider_strategy` must reference a provider pr
 
 ```hcl
 module "ecs_cluster" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/ecs-cluster?ref=providers/aws/primitives/ecs-cluster/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/ecs-cluster?ref=providers/aws/primitives/ecs-cluster/v0.1.0"
 
   name = "adot-cluster"
   tags = {

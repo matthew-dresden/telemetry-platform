@@ -150,7 +150,7 @@ func TestOidcBootstrapProdSubset(t *testing.T) {
 
 		assert.Equal(t, "", stringEqualsSub,
 			"token.actions.githubusercontent.com:sub must NOT appear under StringEquals (a wildcard sub under StringEquals matches nothing)")
-		assert.Equal(t, "repo:example-org/telemetry-platform:environment:prod-apply", stringLikeSub,
+		assert.Equal(t, "repo:matthew-dresden/telemetry-platform:environment:prod-apply", stringLikeSub,
 			"token.actions.githubusercontent.com:sub must appear under StringLike with the prod-apply wildcard sub value")
 	})
 

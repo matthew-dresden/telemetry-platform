@@ -1,4 +1,4 @@
-module github.com/example-org/telemetry-platform/providers/aws/primitives/ssm-parameter
+module github.com/matthew-dresden/telemetry-platform/providers/aws/primitives/ssm-parameter
 
 go 1.26.4
 

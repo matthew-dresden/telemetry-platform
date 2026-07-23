@@ -33,15 +33,15 @@ Usage:
     # push (post-merge) path
     uv run python -m scripts.check_merged_pr_override \\
         --commit-sha "$GITHUB_SHA" \\
-        --repo "example-org/telemetry-platform" \\
-        --org "example-org" \\
+        --repo "matthew-dresden/telemetry-platform" \\
+        --org "matthew-dresden" \\
         --output "$GITHUB_OUTPUT"
 
     # merge_group (merge-queue) path
     uv run python -m scripts.check_merged_pr_override \\
         --merge-group-ref "$MERGE_GROUP_HEAD_REF" \\
-        --repo "example-org/telemetry-platform" \\
-        --org "example-org" \\
+        --repo "matthew-dresden/telemetry-platform" \\
+        --org "matthew-dresden" \\
         --output "$GITHUB_OUTPUT"
 
 Exit codes:
@@ -81,7 +81,7 @@ def fetch_merged_pr(repo: str, commit_sha: str) -> dict[str, object] | None:
     yields None rather than an error (a direct push is never an override).
 
     Args:
-        repo: The GitHub repository (e.g. 'example-org/telemetry-platform').
+        repo: The GitHub repository (e.g. 'matthew-dresden/telemetry-platform').
         commit_sha: The merge commit SHA to look up.
 
     Returns:
@@ -175,7 +175,7 @@ def fetch_pr_by_number(repo: str, pr_number: int) -> dict[str, object] | None:
     existing ``extract_label_names`` / ``extract_author`` helpers apply unchanged.
 
     Args:
-        repo: The GitHub repository (e.g. 'example-org/telemetry-platform').
+        repo: The GitHub repository (e.g. 'matthew-dresden/telemetry-platform').
         pr_number: The pull request number to look up.
 
     Returns:
@@ -324,7 +324,7 @@ def resolve_push_scope_override(
 
     Args:
         commit_sha: The merge commit SHA pushed to the default branch.
-        repo: The GitHub repository (e.g. 'example-org/telemetry-platform').
+        repo: The GitHub repository (e.g. 'matthew-dresden/telemetry-platform').
         org: The GitHub organization name.
         output_path: Output file path to write scope_override= to.
 
@@ -367,7 +367,7 @@ def resolve_merge_group_scope_override(
     Args:
         merge_group_ref: The merge_group head ref
             (e.g. 'gh-readonly-queue/main/pr-161-<sha>').
-        repo: The GitHub repository (e.g. 'example-org/telemetry-platform').
+        repo: The GitHub repository (e.g. 'matthew-dresden/telemetry-platform').
         org: The GitHub organization name.
         output_path: Output file path to write scope_override= to.
 
@@ -422,7 +422,7 @@ def main() -> None:
     parser.add_argument(
         "--repo",
         required=True,
-        help="The GitHub repository (e.g. 'example-org/telemetry-platform').",
+        help="The GitHub repository (e.g. 'matthew-dresden/telemetry-platform').",
     )
     parser.add_argument(
         "--org",

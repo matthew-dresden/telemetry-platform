@@ -125,7 +125,7 @@ def test_positive_clean_tree_exits_zero(tmp_path: pathlib.Path) -> None:
     "bad_source,description",
     [
         (
-            'source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key?ref=v1.0.0"',
+            'source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms-key?ref=v1.0.0"',
             "bare git-URL in-repo source",
         ),
         (
@@ -346,7 +346,7 @@ def test_class_b_scan_variables_tf_raises_on_missing_const(tmp_path: pathlib.Pat
     "bad_default,description",
     [
         (
-            "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key?ref=v1.0.0",
+            "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms-key?ref=v1.0.0",
             "git URL default (not a relative path)",
         ),
         (
@@ -396,7 +396,7 @@ def test_class_c_scan_variables_tf_raises_on_git_url_default(tmp_path: pathlib.P
     variables_tf = tmp_path / "variables.tf"
     variables_tf.write_text(
         'variable "kms_source" {\n  type = string\n  const = true\n'
-        '  default = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key?ref=v1.0.0"\n}\n',
+        '  default = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms-key?ref=v1.0.0"\n}\n',
         encoding="utf-8",
     )
     with pytest.raises(NonRelativeDefaultError) as exc_info:
@@ -520,7 +520,7 @@ def test_examples_allowlist_also_skips_git_url_in_example(tmp_path: pathlib.Path
     # An example that uses a full git URL (also legitimate in examples/)
     example_main_tf = """\
 module "analytics" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/references/analytics?ref=v1.0.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/references/analytics?ref=v1.0.0"
 
   workgroup_name = "test"
 }

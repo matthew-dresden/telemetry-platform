@@ -55,7 +55,7 @@ resolves to the in-repo local relative path without network access. Callers do n
 
 By default (when `use_pinned_module_sources = false` in `account.hcl`), each source resolves to the
 relative in-repo path above. When `use_pinned_module_sources = true` (prod), the terragrunt leaf
-sets every `*_source` input to the pinned `git::https://github.com/example-org/telemetry-platform.git//<path>?ref=<path>/v<semver>`
+sets every `*_source` input to the pinned `git::https://github.com/matthew-dresden/telemetry-platform.git//<path>?ref=<path>/v<semver>`
 URL. The toggle flows from `account.hcl` directly to the leaf (state-bootstrap leaves do not include
 `_envcommon` per the spec; the toggle is consumed from the `account_vars` local in the leaf).
 

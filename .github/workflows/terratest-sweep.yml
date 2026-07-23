@@ -32,7 +32,7 @@ jobs:
     # infra) behind a human reviewer; a scheduled orphan-resource sweep must run on its
     # own without waiting for manual approval, otherwise every scheduled run sits in the
     # pending_deployment queue forever. The QA sweep role (telemetry-platform-gha-terratest)
-    # trusts repo:example-org/telemetry-platform:* (wildcard sub, not environment-gated),
+    # trusts repo:matthew-dresden/telemetry-platform:* (wildcard sub, not environment-gated),
     # so OIDC assume-role still succeeds without the environment binding.
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0

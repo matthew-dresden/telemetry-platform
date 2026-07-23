@@ -13,7 +13,7 @@ Used for issuing TLS certificates for the telemetry-collector platform. Per deci
 
 ```hcl
 module "acm_certificate" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/acm-certificate?ref=providers/aws/primitives/acm-certificate/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/acm-certificate?ref=providers/aws/primitives/acm-certificate/v0.1.0"
 
   domain_name = "example.com"
   tags = {

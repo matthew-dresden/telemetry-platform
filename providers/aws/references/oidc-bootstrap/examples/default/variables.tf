@@ -14,7 +14,7 @@ variable "roles" {
   description = "(Required) Map of role name to role configuration. Each entry creates one OIDC assume-role."
   default = {
     "telemetry-platform-gha-tg-sandbox" = {
-      sub         = "repo:example-org/telemetry-platform:environment:sandbox"
+      sub         = "repo:matthew-dresden/telemetry-platform:environment:sandbox"
       description = "GitHub Actions Terragrunt role for the sandbox account"
     }
   }

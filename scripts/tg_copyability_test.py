@@ -224,7 +224,7 @@ _SYNTHETIC_CLOUDFRONT_PREFIX_LIST_ID: str = "pl-0a0a0a0a"
 _CPYTST_OIDC_ROLES_VALUE: dict[str, Any] = {
     "roles": {
         "cpytst-gha-tg-plan": {
-            "sub": "repo:example-org/telemetry-platform:*",
+            "sub": "repo:matthew-dresden/telemetry-platform:*",
             "managed_policy_arns": [],
             "inline_policies": {},
             "description": "Copyability test synthetic read-only plan role.",

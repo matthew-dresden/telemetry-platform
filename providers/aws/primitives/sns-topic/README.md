@@ -15,7 +15,7 @@ Used as the notification sink for CloudWatch alarm actions and cost-anomaly SNS 
 
 ```hcl
 module "sns_topic" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/sns-topic?ref=providers/aws/primitives/sns-topic/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/sns-topic?ref=providers/aws/primitives/sns-topic/v0.1.0"
 
   topic_name = "platform-alerts"
   kms_key_id = module.kms_key.key_arn

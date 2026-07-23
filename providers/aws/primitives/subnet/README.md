@@ -11,7 +11,7 @@ Manages a set of subnets (public or private) across availability zones within a 
 
 ```hcl
 module "subnet" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/subnet?ref=providers/aws/primitives/subnet/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/subnet?ref=providers/aws/primitives/subnet/v0.1.0"
 
   vpc_id = module.vpc.vpc_id
   subnets = [

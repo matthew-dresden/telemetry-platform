@@ -137,7 +137,7 @@ Each block has its own distinct source variable per the spec (AC-5).
 
 By default (when `use_pinned_module_sources = false` in `account.hcl`), each source resolves to the
 relative in-repo path above. When `use_pinned_module_sources = true` (prod), the terragrunt leaf
-sets every `*_source` input to the pinned `git::https://github.com/example-org/telemetry-platform.git//<path>?ref=<path>/v<semver>`
+sets every `*_source` input to the pinned `git::https://github.com/matthew-dresden/telemetry-platform.git//<path>?ref=<path>/v<semver>`
 URL. The toggle flows from `account.hcl` through `_envcommon/identity.hcl` to the leaf.
 See `docs/terraform-module-sourcing.md` for the end-to-end workflow.
 

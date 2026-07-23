@@ -68,7 +68,7 @@ def _make_module(
     # Create go.mod
     (root).mkdir(parents=True, exist_ok=True)
     (root / "go.mod").write_text(
-        f"module github.com/example-org/telemetry-platform/providers/aws/{kind}/{module_name}\n"
+        f"module github.com/matthew-dresden/telemetry-platform/providers/aws/{kind}/{module_name}\n"
         "\ngo 1.26.4\n"
     )
 

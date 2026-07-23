@@ -68,7 +68,7 @@ your fork:
 | `cross-account-read.json` | Optional external principals granted cross-account READ on the data lake, keyed by a stable label → `{account_id, description}`. Empty means no external grant. This is how a downstream BI/analytics account attaches to the Athena/Glue terminus. |
 
 There is **no fallback**: an unregistered value fails fast rather than defaulting silently. Placeholder
-values in the committed files (`example-org`, `111111111111`, `<REAL_Z_ID>`, `<FILL:KMS_KEY_UUID>`)
+values in the committed files (`111111111111`, `<REAL_Z_ID>`, `<FILL:KMS_KEY_UUID>`)
 are deliberate fail-fast markers — replace every one for the accounts you deploy.
 
 Also register the tools whose telemetry you will ingest in

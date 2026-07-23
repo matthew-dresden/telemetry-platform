@@ -17,15 +17,15 @@ is_var_driven_source(content) if {
 	regex.match(`(^|[^0-9A-Za-z_])source\s*=\s*var\.[a-zA-Z_][a-zA-Z0-9_]*_source\b`, content)
 }
 
-# True when the source literal is a monorepo git URL (example-org/telemetry-platform or matthew-dresden/terraform-modules).
+# True when the source literal is a monorepo git URL (matthew-dresden/telemetry-platform or matthew-dresden/terraform-modules).
 # This is the single authoritative definition of the two-host allowlist.
 is_monorepo_source(content) if {
-	regex.match(`source\s*=\s*"git::https://github\.com/(matthew-dresden/terraform-modules|example-org/telemetry-platform)\.git//`, content)
+	regex.match(`source\s*=\s*"git::https://github\.com/(matthew-dresden/terraform-modules|matthew-dresden/telemetry-platform)\.git//`, content)
 }
 
 # True when a monorepo source has a pinned /v<semver> ref.
 has_ref_parameter(content) if {
-	regex.match(`source\s*=\s*"git::https://github\.com/(matthew-dresden/terraform-modules|example-org/telemetry-platform)\.git//[^?]+\?ref=.+/v[0-9]+\.[0-9]+\.[0-9]+"`, content)
+	regex.match(`source\s*=\s*"git::https://github\.com/(matthew-dresden/terraform-modules|matthew-dresden/telemetry-platform)\.git//[^?]+\?ref=.+/v[0-9]+\.[0-9]+\.[0-9]+"`, content)
 }
 
 # True when the content contains a literal local source (relative or absolute path),
@@ -142,7 +142,7 @@ violation contains result if {
 		"severity": "error",
 		"message": "Module source must be from this monorepo",
 		"details": sprintf("File '%s' contains a module source that is not from the platform module sources", [file]),
-		"resolution": "Use module sources from git::https://github.com/matthew-dresden/terraform-modules.git or git::https://github.com/example-org/telemetry-platform.git only",
+		"resolution": "Use module sources from git::https://github.com/matthew-dresden/terraform-modules.git or git::https://github.com/matthew-dresden/telemetry-platform.git only",
 	}
 }
 

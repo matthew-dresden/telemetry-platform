@@ -14,11 +14,11 @@ variable "roles" {
   description = "(Required) Map of role name to role configuration. Defaults to the two prod roles per docs/terragrunt-concepts.md."
   default = {
     "telemetry-platform-gha-tg-plan" = {
-      sub         = "repo:example-org/telemetry-platform:pull_request"
+      sub         = "repo:matthew-dresden/telemetry-platform:pull_request"
       description = "GitHub Actions Terragrunt read-only plan role (PR trust)"
     }
     "telemetry-platform-gha-tg-apply" = {
-      sub         = "repo:example-org/telemetry-platform:environment:prod-apply"
+      sub         = "repo:matthew-dresden/telemetry-platform:environment:prod-apply"
       description = "GitHub Actions Terragrunt apply role for prod (environment:prod-apply trust)"
     }
   }

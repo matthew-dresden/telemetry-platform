@@ -14,7 +14,7 @@ Used by the observability reference module to detect unexpected spend spikes. Th
 
 ```hcl
 module "cost_anomaly" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/cost-anomaly?ref=providers/aws/primitives/cost-anomaly/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/cost-anomaly?ref=providers/aws/primitives/cost-anomaly/v0.1.0"
 
   monitor_name      = "platform-spend-monitor"
   subscription_name = "platform-spend-alerts"

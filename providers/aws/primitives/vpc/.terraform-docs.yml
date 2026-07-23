@@ -34,7 +34,7 @@ content: |-
 
   ```hcl
   module "vpc" {
-    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/vpc?ref=providers/aws/primitives/vpc/v1.0.0"
+    source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/vpc?ref=providers/aws/primitives/vpc/v1.0.0"
 
     name       = "my-vpc"
     cidr_block = "10.0.0.0/16"

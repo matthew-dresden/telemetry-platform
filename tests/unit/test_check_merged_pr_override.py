@@ -45,8 +45,8 @@ from scripts.check_merged_pr_override import (
 from scripts.check_scope_override import AuthorizationError
 from scripts.constants import OUTPUT_KEY_SCOPE_OVERRIDE, SCOPE_OVERRIDE_LABEL
 
-_REPO = "example-org/telemetry-platform"
-_ORG = "example-org"
+_REPO = "matthew-dresden/telemetry-platform"
+_ORG = "matthew-dresden"
 _SHA = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 
 

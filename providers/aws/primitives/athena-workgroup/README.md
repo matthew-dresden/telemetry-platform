@@ -13,7 +13,7 @@ The `enforce_workgroup_configuration` flag (default `true`) ensures clients cann
 
 ```hcl
 module "athena_workgroup" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/athena-workgroup?ref=providers/aws/primitives/athena-workgroup/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/athena-workgroup?ref=providers/aws/primitives/athena-workgroup/v0.1.0"
 
   workgroup_name                 = "telemetry-analytics"
   result_s3_bucket               = "my-athena-results-bucket"

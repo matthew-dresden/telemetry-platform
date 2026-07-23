@@ -15,7 +15,7 @@ import data.terraform.provider.aws.module_types.reference.source as reexport
 test_reexport_surfaces_denied_violation if {
 	files := {"modules/m/main.tf": concat("\n", [
 		"module \"kms\" {",
-		"  source = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key\"",
+		"  source = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms-key\"",
 		"}",
 	])}
 	test_input := fixtures.mock_module_input("modules/m", files)
@@ -31,7 +31,7 @@ test_reexport_surfaces_denied_violation if {
 test_reexport_allows_pinned_source if {
 	files := {"modules/m/main.tf": concat("\n", [
 		"module \"net\" {",
-		"  source = \"git::https://github.com/example-org/telemetry-platform.git//providers/aws/references/vpc-network?ref=providers/aws/references/vpc-network/v2.1.0\"",
+		"  source = \"git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/references/vpc-network?ref=providers/aws/references/vpc-network/v2.1.0\"",
 		"}",
 	])}
 	test_input := fixtures.mock_module_input("modules/m", files)

@@ -1,4 +1,4 @@
-module github.com/example-org/telemetry-platform/providers/aws/primitives/s3-bucket
+module github.com/matthew-dresden/telemetry-platform/providers/aws/primitives/s3-bucket
 
 go 1.26.4
 

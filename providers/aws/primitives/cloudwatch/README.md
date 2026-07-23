@@ -17,7 +17,7 @@ Each alarm must set **exactly one** of `statistic` (one of `SampleCount`, `Avera
 
 ```hcl
 module "cloudwatch" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/cloudwatch?ref=providers/aws/primitives/cloudwatch/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/cloudwatch?ref=providers/aws/primitives/cloudwatch/v0.1.0"
 
   alarms = {
     high_cpu = {

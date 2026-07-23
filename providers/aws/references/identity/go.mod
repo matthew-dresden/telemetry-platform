@@ -1,4 +1,4 @@
-module github.com/example-org/telemetry-platform/providers/aws/references/identity
+module github.com/matthew-dresden/telemetry-platform/providers/aws/references/identity
 
 go 1.26.4
 

@@ -1,4 +1,4 @@
-module github.com/example-org/telemetry-platform/providers/aws/primitives/route53-record
+module github.com/matthew-dresden/telemetry-platform/providers/aws/primitives/route53-record
 
 go 1.26.4
 

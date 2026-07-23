@@ -1,4 +1,4 @@
-module github.com/example-org/telemetry-platform/providers/aws/references/observability
+module github.com/matthew-dresden/telemetry-platform/providers/aws/references/observability
 
 go 1.26.4
 

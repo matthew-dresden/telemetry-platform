@@ -13,7 +13,7 @@ Usage:
     uv run python -m scripts.check_scope_override \\
         --labels "detect-scope-override,other-label" \\
         --author "username" \\
-        --org "example-org" \\
+        --org "matthew-dresden" \\
         --output "$GITHUB_OUTPUT"
 
 Exit codes:

@@ -15,7 +15,7 @@ The module provisions an `extended_s3` destination only. Dynamic partitioning ex
 
 ```hcl
 module "firehose" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kinesis-firehose-delivery-stream?ref=providers/aws/primitives/kinesis-firehose-delivery-stream/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kinesis-firehose-delivery-stream?ref=providers/aws/primitives/kinesis-firehose-delivery-stream/v0.1.0"
 
   name        = "telemetry-delivery"
   bucket_arn  = module.lake_bucket.bucket_arn

@@ -26,7 +26,7 @@
 #
 # APPLY ROLE TRUST (AC-1, spec AC-14):
 # The telemetry-platform-gha-tg-apply role's trust sub is bound to:
-#   repo:example-org/telemetry-platform:environment:prod-apply
+#   repo:matthew-dresden/telemetry-platform:environment:prod-apply
 # This is declared in common/oidc-roles.json for the prod account entry.
 # The envcommon resolves this sub from oidc-roles.json and passes it through
 # as part of the roles map to the references/oidc-bootstrap module.
@@ -168,7 +168,7 @@ locals {
 inputs = {
   roles = {
     telemetry-platform-gha-tg-apply = {
-      sub = "repo:example-org/telemetry-platform:environment:prod-apply"
+      sub = "repo:matthew-dresden/telemetry-platform:environment:prod-apply"
       # The prod apply role IS the deploy identity (D4: the OIDC-assumed role is the
       # deploy identity, no second role assumption for the env's own account). It must
       # carry deploy permissions for every resource kind the env tree provisions

@@ -17,7 +17,7 @@ export TF_VAR_account_id="$(aws sts get-caller-identity --query Account --output
 
 ```hcl
 module "kms_key" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms-key"
 
   alias_name   = "telemetry-with-policy-example"
   multi_region = true

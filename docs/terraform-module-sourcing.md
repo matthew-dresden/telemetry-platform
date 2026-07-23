@@ -59,11 +59,20 @@ variable is constant-typed. The default is always an in-repo relative path (for 
 {
   "envs": {
     "sandbox": { "use_pinned_module_sources": false },
-    "prod":    { "use_pinned_module_sources": true },
+    "prod":    { "use_pinned_module_sources": false },
     "qa":      { "use_pinned_module_sources": false }
   }
 }
 ```
+
+**Every env is currently `false`, including `prod`.** A `true` value only resolves once the
+`providers/**/v<semver>` tag each leaf pins actually exists in the remote. This repository has
+published no per-module release tags yet (the first release is `0.1.0`), so a `true` prod toggle
+would make every pinned source 404 at `terragrunt init`. The same reasoning already pins
+`_envcommon/oidc-bootstrap.hcl`'s `bootstrap_use_pinned_module_sources = false`. Flip `prod` back to
+`true` in `env_accounts.json` — the one place the toggle is defined — after
+[module-promotion-flow.md](module-promotion-flow.md) has published the tags the prod leaves
+reference. The leaves themselves already carry both branches, so no leaf edit is involved.
 
 `account.hcl` resolves the value from `env_accounts.json` into its own locals (keyed by the
 env-folder basename), and each `_envcommon/<service>.hcl` re-reads it from `account.hcl` so every
@@ -104,7 +113,7 @@ When the resolved toggle is `false`:
 ```hcl
 # leaf, toggle false
 terraform {
-  source = local.account_vars.locals.use_pinned_module_sources ? "git::https://github.com/example-org/telemetry-platform.git//providers/aws/references/data-lake?ref=providers/aws/references/data-lake/v1.0.1" : "${get_repo_root()}//providers/aws/references/data-lake"
+  source = local.account_vars.locals.use_pinned_module_sources ? "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/references/data-lake?ref=providers/aws/references/data-lake/v1.0.1" : "${get_repo_root()}//providers/aws/references/data-lake"
 }
 
 inputs = local.account_vars.locals.use_pinned_module_sources ? {
@@ -122,9 +131,9 @@ a pinned URL for every in-repo child `*_source` variable:
 ```hcl
 # leaf, toggle true
 inputs = {
-  lake_kms_source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key?ref=providers/aws/primitives/kms-key/v1.0.1"
-  athena_source   = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/athena-workgroup?ref=providers/aws/primitives/athena-workgroup/v1.0.1"
-  glue_source     = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/glue-catalog?ref=providers/aws/primitives/glue-catalog/v1.0.1"
+  lake_kms_source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms-key?ref=providers/aws/primitives/kms-key/v1.0.1"
+  athena_source   = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/athena-workgroup?ref=providers/aws/primitives/athena-workgroup/v1.0.1"
+  glue_source     = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/glue-catalog?ref=providers/aws/primitives/glue-catalog/v1.0.1"
   # ...other service inputs
 }
 ```
@@ -190,7 +199,7 @@ for each of:
 
 - A literal local module source (relative or absolute path) that is not var-driven.
 - A literal source that is not from the monorepo allowlist (the upstream
-  `matthew-dresden/terraform-modules` or this repo's `example-org/telemetry-platform`).
+  `matthew-dresden/terraform-modules` or this repo's `matthew-dresden/telemetry-platform`).
 - A monorepo literal source missing a pinned `?ref=.../v<semver>`.
 - A `source = var.<name>_source` whose declaring variable lacks `const = true`.
 - A `*_source` variable whose default is a git URL or an absolute path (must be an in-repo

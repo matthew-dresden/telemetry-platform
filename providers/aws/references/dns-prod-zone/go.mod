@@ -1,4 +1,4 @@
-module github.com/example-org/telemetry-platform/providers/aws/references/dns-prod-zone
+module github.com/matthew-dresden/telemetry-platform/providers/aws/references/dns-prod-zone
 
 go 1.26.4
 

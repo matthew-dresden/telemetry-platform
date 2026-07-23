@@ -1,4 +1,4 @@
-module github.com/example-org/telemetry-platform/providers/aws/primitives/iam-role
+module github.com/matthew-dresden/telemetry-platform/providers/aws/primitives/iam-role
 
 go 1.26.4
 

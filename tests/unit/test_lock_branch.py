@@ -55,7 +55,7 @@ def test_lock_branch_lock_writes_marker_and_puts_protection() -> None:
 
     with patch("scripts.lock_branch.subprocess.run", side_effect=fake_run):
         lock_branch(
-            repo="example-org/telemetry-platform",
+            repo="matthew-dresden/telemetry-platform",
             branch="main",
             run_id="42",
         )
@@ -102,7 +102,7 @@ def test_lock_branch_lock_raises_on_protection_404() -> None:
         pytest.raises((RuntimeError, SystemExit)) as exc_info,
     ):
         lock_branch(
-            repo="example-org/telemetry-platform",
+            repo="matthew-dresden/telemetry-platform",
             branch="main",
             run_id="42",
         )
@@ -151,7 +151,7 @@ def test_lock_branch_unlock_removes_protection() -> None:
 
     with patch("scripts.lock_branch.subprocess.run", side_effect=fake_run):
         unlock_branch(
-            repo="example-org/telemetry-platform",
+            repo="matthew-dresden/telemetry-platform",
             branch="main",
         )
 
@@ -175,7 +175,7 @@ def test_lock_branch_unlock_idempotent_when_not_locked() -> None:
     with patch("scripts.lock_branch.subprocess.run", side_effect=fake_run):
         # Must not raise -- idempotent (D47)
         unlock_branch(
-            repo="example-org/telemetry-platform",
+            repo="matthew-dresden/telemetry-platform",
             branch="main",
         )
 
@@ -207,7 +207,7 @@ def test_lock_branch_write_lock_marker_includes_run_id_and_timestamp() -> None:
 
     with patch("scripts.lock_branch.subprocess.run", side_effect=fake_run):
         write_lock_marker(
-            repo="example-org/telemetry-platform",
+            repo="matthew-dresden/telemetry-platform",
             branch="main",
             run_id="99",
         )
@@ -267,7 +267,7 @@ def test_lock_branch_cli_dispatch(action: str, extra_argv: list[str]) -> None:
         "--action",
         action,
         "--repo",
-        "example-org/telemetry-platform",
+        "matthew-dresden/telemetry-platform",
         "--branch",
         "main",
     ] + extra_argv
@@ -299,7 +299,7 @@ def test_lock_branch_write_lock_marker_falls_back_to_post() -> None:
 
     with patch("scripts.lock_branch.subprocess.run", side_effect=fake_run):
         write_lock_marker(
-            repo="example-org/telemetry-platform",
+            repo="matthew-dresden/telemetry-platform",
             branch="main",
             run_id="42",
         )
@@ -322,7 +322,7 @@ def test_lock_branch_write_lock_marker_raises_when_both_fail() -> None:
         mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="forbidden")
         with pytest.raises(RuntimeError) as exc_info:
             write_lock_marker(
-                repo="example-org/telemetry-platform",
+                repo="matthew-dresden/telemetry-platform",
                 branch="main",
                 run_id="42",
             )
@@ -358,7 +358,7 @@ def test_lock_branch_unlock_raises_on_delete_failure() -> None:
         pytest.raises(RuntimeError) as exc_info,
     ):
         unlock_branch(
-            repo="example-org/telemetry-platform",
+            repo="matthew-dresden/telemetry-platform",
             branch="main",
         )
 
@@ -404,7 +404,7 @@ def test_lock_branch_cli_exits_nonzero_when_missing_run_id() -> None:
         "--action",
         "lock",
         "--repo",
-        "example-org/telemetry-platform",
+        "matthew-dresden/telemetry-platform",
         "--branch",
         "main",
     ]
@@ -435,7 +435,7 @@ def test_lock_branch_enable_protection_raises_on_non_404_error() -> None:
         )
         with pytest.raises(RuntimeError) as exc_info:
             _enable_branch_protection(
-                repo="example-org/telemetry-platform",
+                repo="matthew-dresden/telemetry-platform",
                 branch="main",
             )
 
@@ -484,7 +484,7 @@ def test_lock_branch_enable_sends_complete_protection_body() -> None:
     with patch("scripts.lock_branch.subprocess.run", side_effect=fake_run):
         from scripts.lock_branch import _enable_branch_protection
 
-        _enable_branch_protection(repo="example-org/telemetry-platform", branch="main")
+        _enable_branch_protection(repo="matthew-dresden/telemetry-platform", branch="main")
 
     assert captured.get("body"), "lock PUT must receive a JSON request body via stdin."
     body = _json.loads(captured["body"])
@@ -528,7 +528,7 @@ def test_lock_branch_unlock_sends_complete_protection_body_lock_false() -> None:
     with patch("scripts.lock_branch.subprocess.run", side_effect=fake_run):
         from scripts.lock_branch import _disable_branch_lock
 
-        _disable_branch_lock(repo="example-org/telemetry-platform", branch="main")
+        _disable_branch_lock(repo="matthew-dresden/telemetry-platform", branch="main")
 
     assert captured.get("body"), "unlock PUT must receive a JSON request body via stdin."
     body = _json.loads(captured["body"])
@@ -589,7 +589,7 @@ def test_lock_branch_disable_protection_raises_on_errors(
         pytest.raises(RuntimeError) as exc_info,
     ):
         _disable_branch_lock(
-            repo="example-org/telemetry-platform",
+            repo="matthew-dresden/telemetry-platform",
             branch="main",
         )
 
@@ -614,7 +614,7 @@ def test_lock_branch_is_branch_locked_returns_false_for_null_value() -> None:
     with patch("scripts.lock_branch.subprocess.run") as mock_run:
         mock_run.return_value = MagicMock(returncode=0, stdout="null\n", stderr="")
         result = _is_branch_locked(
-            repo="example-org/telemetry-platform",
+            repo="matthew-dresden/telemetry-platform",
             branch="main",
         )
 
@@ -675,7 +675,7 @@ def test_lock_branch_cli_exits_nonzero_on_runtime_error() -> None:
         "--action",
         "lock",
         "--repo",
-        "example-org/telemetry-platform",
+        "matthew-dresden/telemetry-platform",
         "--branch",
         "main",
         "--run-id",

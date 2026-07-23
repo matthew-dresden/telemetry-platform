@@ -14,7 +14,7 @@ Used for encrypting S3 data lake buckets, Kinesis Firehose, SSM SecureString par
 
 ```hcl
 module "kms_key" {
-  source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key?ref=providers/aws/primitives/kms-key/v0.1.0"
+  source = "git::https://github.com/matthew-dresden/telemetry-platform.git//providers/aws/primitives/kms-key?ref=providers/aws/primitives/kms-key/v0.1.0"
 
   alias_name          = "my-service-key"
   enable_key_rotation = true
