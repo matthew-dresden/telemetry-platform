@@ -655,9 +655,7 @@ class LiveVerify:
         # e.g. `.../token.actions.githubusercontent.com.evil.test` would satisfy a
         # substring test and be probed as if it were GitHub's.
         gh_provider_arns = [
-            p["Arn"]
-            for p in providers
-            if p["Arn"].endswith("/token.actions.githubusercontent.com")
+            p["Arn"] for p in providers if p["Arn"].endswith("/token.actions.githubusercontent.com")
         ]
 
         probe_name = "oidc-provider:list-providers"
