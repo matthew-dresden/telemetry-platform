@@ -1,0 +1,5 @@
+terraform 1.15.5
+tflint 0.63.1
+trivy 0.71.0
+opa 1.17.0
+terraform-docs 0.24.0

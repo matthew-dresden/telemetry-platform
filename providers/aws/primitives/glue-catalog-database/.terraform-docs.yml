@@ -1,0 +1,139 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # glue-catalog-database
+
+  Manages a Glue Data Catalog database and an optional format-conversion table with Parquet SerDe and `tool`/`dt` partition keys for the telemetry-collector data lake.
+
+  The `create_table` gate (default `false`) controls whether an `aws_glue_catalog_table` is provisioned alongside the database. When the gate is on (`create_table = true`) the `table` variable must be supplied and must include both `tool` and `dt` partition keys. The table is the single source of truth for the Parquet schema that Firehose reads via its `data_format_conversion` block (spec 1.B B4).
+
+  ## Resources managed
+
+  - `aws_glue_catalog_database` -- the Glue catalog database
+  - `aws_glue_catalog_table` -- the Parquet format-conversion table (created only when `create_table = true`)
+
+  ## Usage
+
+  ```hcl
+  module "catalog" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/glue-catalog-database?ref=providers/aws/primitives/glue-catalog-database/v0.1.0"
+
+    database_name = "telemetry"
+    description   = "Telemetry usage analytics catalog"
+    create_table  = true
+
+    table = {
+      name                       = "telemetry_events"
+      location                   = "s3://my-data-lake/raw/"
+      input_format               = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+      output_format              = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+      serde_serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+      columns = [
+        { name = "timestamp",    type = "timestamp",        comment = "Event timestamp" },
+        { name = "service_name", type = "string",           comment = "Originating service" },
+        { name = "severity",     type = "string",           comment = "Log severity" },
+        { name = "body",         type = "string",           comment = "Log body" },
+        { name = "attributes",   type = "map<string,string>", comment = "Open attributes map for schema-on-read" },
+      ]
+      partition_keys = [
+        { name = "tool", type = "string" },
+        { name = "dt",   type = "string" },
+      ]
+
+      # Athena partition projection -- partitions resolved from the S3 key layout
+      # without a crawler so queries work immediately.
+      parameters = {
+        "projection.enabled"          = "true"
+        "projection.tool.type"        = "injected"
+        "projection.dt.type"          = "date"
+        "projection.dt.format"        = "yyyy-MM-dd"
+        "projection.dt.range"         = "NOW-3YEARS,NOW"
+        "projection.dt.interval"      = "1"
+        "projection.dt.interval.unit" = "DAYS"
+        "storage.location.template"   = "s3://my-data-lake/raw/tool=$${tool}/dt=$${dt}"
+      }
+    }
+
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/basic` -- database only, `create_table` left at its `false` default
+  - `examples/with-table` -- database + table with typed columns, an `attributes` `map<string,string>` column, `tool`/`dt` partition keys with a Parquet SerDe, and an Athena partition-projection configuration passed via `table.parameters`
+
+  ## Table parameters and Athena partition projection
+
+  `table.parameters` is an optional `map(string)` rendered onto `aws_glue_catalog_table.parameters`. It carries table-level Glue parameters -- most importantly an Athena partition-projection configuration, which lets Athena resolve partitions directly from the S3 key layout (`tool=<x>/dt=<yyyy-MM-dd>/`) without a Glue crawler or registered partitions, so queries work immediately. A typical projection sets `projection.enabled = "true"`, an `injected` `tool` dimension, a `date` `dt` dimension whose `projection.dt.format` matches the Firehose `!{timestamp:...}` namespace, and a `storage.location.template` mapping the projected placeholders onto the data prefix. The default is an empty map (no table parameters).
+
+  ## create_table gate
+
+  The `create_table` variable (default `false`) gates the `aws_glue_catalog_table` resource via `count = var.create_table ? 1 : 0`. When the gate is off, no table is created and `table_name` outputs `null`. When the gate is on:
+
+  - `table` must be non-null (validation fails otherwise)
+  - `table.partition_keys` must include both `tool` and `dt` (validation fails otherwise)
+  - `table.location` must start with `s3://` (validation fails otherwise)
+
+  ## tool/dt partition contract
+
+  All Glue tables managed by this module that are used for Firehose format conversion must include `tool` (string) and `dt` (string) partition keys. This contract aligns with spec section 1.B B4 and the dynamic partitioning prefix written by Firehose: `tool=!{partitionKeyFromQuery:tool}/dt=!{timestamp:yyyy-MM-dd}/`.
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `database_name` must match `^[a-z0-9_]+$`. Plans fail for invalid or empty names.
+  - `location_uri`, when provided, must start with `s3://`. Plans fail for non-S3 URIs.
+  - `table` must be non-null when `create_table` is true. Plans fail otherwise.
+  - `table.location` must start with `s3://` when `table` is provided. Plans fail otherwise.
+  - `table.partition_keys` must include both `tool` and `dt` when `create_table` is true. Plans fail when either is absent.
+  - `table.columns` and `table.partition_keys` must be disjoint: a data column name may not also be a partition key, or Glue rejects the table with `HIVE_INVALID_METADATA: Table descriptor contains duplicate columns`. Plans fail when a name appears in both.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

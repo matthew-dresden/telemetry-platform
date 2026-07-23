@@ -1,0 +1,88 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # acm-certificate
+
+  Manages a single AWS ACM certificate configured for DNS validation, exposing the certificate ARN, domain validation options, domain name, and status for use by downstream modules.
+
+  Used for issuing TLS certificates for the telemetry-collector platform. Per decision D24, this primitive does NOT create `aws_acm_certificate_validation` -- the consuming unit is responsible for feeding `domain_validation_options` into its own validation resource. The ACM certificate must be created in `us-east-1` when used with CloudFront distributions.
+
+  ## Resources managed
+
+  - `aws_acm_certificate` -- the requested certificate (no `aws_acm_certificate_validation`, per D24)
+
+  ## Usage
+
+  ```hcl
+  module "acm_certificate" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/acm-certificate?ref=providers/aws/primitives/acm-certificate/v0.1.0"
+
+    domain_name = "example.com"
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/basic` -- DNS validation, RSA_2048 key, provider pinned to us-east-1 for CloudFront compatibility
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `domain_name` must match `^[a-z0-9.-]+$`. Plans fail if the pattern is not satisfied.
+  - `validation_method` must be one of `DNS` or `EMAIL`. Plans fail for any other value.
+  - `key_algorithm` must be one of `RSA_2048`, `EC_prime256v1`, or `EC_secp384r1`. Plans fail for any other value.
+  - `subject_alternative_names` elements must each match `^[a-z0-9.*-]+$`. Plans fail for invalid SAN entries.
+
+  ## Decision D24 -- validation belongs to the consuming unit
+
+  This module intentionally does not create `aws_acm_certificate_validation`. The consuming unit must create its own `aws_acm_certificate_validation` resource using the `domain_validation_options` output from this module. This separation ensures the consuming unit controls the validation lifecycle and DNS record creation.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

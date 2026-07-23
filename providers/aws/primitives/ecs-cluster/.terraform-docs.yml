@@ -1,0 +1,87 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # ecs-cluster
+
+  Manages an ECS cluster with Fargate and Fargate Spot capacity providers and Container Insights enabled by default. This primitive is used by the `ecs-app-cluster` reference module to host the ADOT collector service.
+
+  The cluster defaults to both FARGATE and FARGATE_SPOT capacity providers. When `default_capacity_provider_strategy` is left empty (the default), the module auto-derives a strategy from `capacity_providers` (FARGATE base=1 weight=1, FARGATE_SPOT weight=4 when present) per ledger decision D44. Container Insights is enabled by default.
+
+  Every entry in `default_capacity_provider_strategy` must reference a provider present in `capacity_providers`; a `lifecycle.precondition` on the capacity-providers association fails the plan otherwise (fail-fast, surfacing the error at plan time rather than at `PutClusterCapacityProviders` apply time).
+
+  ## Resources managed
+
+  - `aws_ecs_cluster` -- the ECS cluster with Container Insights configuration
+  - `aws_ecs_cluster_capacity_providers` -- Fargate and Fargate Spot capacity provider association
+
+  ## Usage
+
+  ```hcl
+  module "ecs_cluster" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/ecs-cluster?ref=providers/aws/primitives/ecs-cluster/v0.1.0"
+
+    name = "adot-cluster"
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/default` -- ECS cluster with FARGATE and FARGATE_SPOT capacity providers, Container Insights on
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `name` must be 1-255 characters matching `^[a-zA-Z0-9_-]+$`. Plans fail for empty or invalid names.
+  - `capacity_providers` must be non-empty and a subset of [FARGATE, FARGATE_SPOT]. Plans fail for EC2 or other providers.
+  - `default_capacity_provider_strategy` entries must each reference a provider present in `capacity_providers`. Plans fail via a `lifecycle.precondition` otherwise.
+  - `execute_command_logging` must be one of NONE, DEFAULT, OVERRIDE.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

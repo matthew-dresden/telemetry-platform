@@ -1,0 +1,100 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # athena-workgroup
+
+  Manages a single cost-capped `aws_athena_workgroup` for the telemetry analytics plane. The workgroup enforces configuration over client-side settings, applies a per-query `bytes_scanned_cutoff_per_query` byte cap (minimum 10 MB), and writes query results to an SSE-KMS-encrypted S3 location so Authors and Admins can query the data lake without uncontrolled cost or unencrypted result spill.
+
+  The `enforce_workgroup_configuration` flag (default `true`) ensures clients cannot override the result location, encryption settings, or the byte cap. The `bytes_scanned_cutoff_per_query` input is required and must be at least 10485760 (10 MB) per spec section 4.10 and the AWS API minimum.
+
+  ## Resources managed
+
+  - `aws_athena_workgroup` -- the cost-capped Athena workgroup with SSE-KMS result configuration
+
+  ## Usage
+
+  ```hcl
+  module "athena_workgroup" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/athena-workgroup?ref=providers/aws/primitives/athena-workgroup/v0.1.0"
+
+    workgroup_name                 = "telemetry-analytics"
+    result_s3_bucket               = "my-athena-results-bucket"
+    result_kms_key_arn             = "arn:aws:kms:us-east-1:123456789012:key/my-key-id"
+    bytes_scanned_cutoff_per_query = 10737418240
+
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/default` -- single workgroup with SSE-KMS result location and 10 MB minimum byte cap
+
+  ## enforce_workgroup_configuration
+
+  When `enforce_workgroup_configuration` is `true` (the default), the workgroup overrides all client-supplied result location, encryption, and byte-cutoff settings. This is the recommended setting for regulated environments where uncontrolled cost or unencrypted result spill is not acceptable.
+
+  ## Cost cap
+
+  The `bytes_scanned_cutoff_per_query` input (required) cancels any query that would scan more bytes than the configured limit. AWS enforces a minimum of 10485760 (10 MB). The module's input validation fails fast if the caller supplies a value below this floor.
+
+  ## SSE-KMS result encryption
+
+  All query results are written to `s3://<result_s3_bucket>/<result_s3_key_prefix>` and encrypted with the KMS key supplied via `result_kms_key_arn`. This satisfies the data-protection requirements for regulated environments (spec section 4.10).
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `workgroup_name` must match `^[a-zA-Z0-9_-]+$`. Plans fail for invalid or empty names.
+  - `bytes_scanned_cutoff_per_query` must be at least 10485760. Plans fail for values below the minimum.
+  - `result_s3_bucket` must be a valid S3 bucket name. Plans fail for malformed names.
+  - `result_kms_key_arn` must match the KMS ARN pattern. Plans fail for non-KMS ARNs.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

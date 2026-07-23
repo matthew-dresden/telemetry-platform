@@ -1,0 +1,22 @@
+{
+  "prod": {
+    "dns_service_apex": "prod.telemetry.example.com",
+    "dns_pretty_apex": "telemetry.example.com",
+    "enable_custom_domain": true
+  },
+  "sandbox": {
+    "dns_service_apex": "sandbox.telemetry.example.com",
+    "dns_pretty_apex": "sandbox.telemetry.example.com",
+    "enable_custom_domain": true
+  },
+  "qa": {
+    "dns_service_apex": "qa.telemetry.example.com",
+    "dns_pretty_apex": "qa.telemetry.example.com",
+    "enable_custom_domain": true
+  },
+  "bootstrap": {
+    "dns_service_apex": "bootstrap.telemetry.example.com",
+    "dns_pretty_apex": "bootstrap.telemetry.example.com",
+    "enable_custom_domain": false
+  }
+}

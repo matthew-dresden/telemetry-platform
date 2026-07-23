@@ -1,0 +1,14 @@
+{
+  "222222222222": [
+    "arn:aws:s3:::222222222222-tfstate",
+    "arn:aws:s3:::222222222222-tfstate-access-logs",
+    "arn:aws:kms:us-east-1:222222222222:alias/222222222222-tfstate",
+    "arn:aws:s3:::222222222222-tfstate-tfstate"
+  ],
+  "111111111111": [
+    "arn:aws:s3:::111111111111-tfstate",
+    "arn:aws:s3:::111111111111-tfstate-access-logs",
+    "arn:aws:kms:us-east-1:111111111111:alias/111111111111-tfstate",
+    "arn:aws:s3:::111111111111-tfstate-tfstate"
+  ]
+}

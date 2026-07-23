@@ -1,0 +1,88 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "telemetry-platform"
+version = "0.1.0"
+license = "Apache-2.0"
+authors = [{ name = "Matthew Dresden", email = "contact@matthewdresden.com" }]
+requires-python = ">=3.14"
+dependencies = [
+    "boto3>=1.43.0",
+    "botocore>=1.43.0",
+    # OTLP protobuf message definitions used by the standalone OTLP/HTTP load +
+    # conformance generator (scripts/otlp_e2e_loadgen.py). Declared as a runtime
+    # dependency -- not a dev extra -- so the e2e load generator works after a
+    # plain `make configure` (uv sync --frozen, no --extra) the same way the
+    # other operator-facing automation scripts do.
+    "opentelemetry-proto>=1.30.0",
+    "protobuf>=5.0.0",
+    # Chart rendering for the performance-test report (scripts/perf_report.py):
+    # PNG line/bar charts (client throughput/latency, ECS CPU/mem, ALB
+    # latency/5xx/connections, Firehose, Lambda) are embedded as base64 data URIs
+    # into one self-contained HTML file. A cp3.14 wheel is available for this
+    # platform (verified at pin time), so this is a base-dependency runtime pin
+    # -- not a dev extra -- the same as opentelemetry-proto/protobuf above, so
+    # `make perf-report` works after a plain `make configure`.
+    "matplotlib>=3.11.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "bandit>=1.8.0",
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+    "pyyaml>=6.0",
+    "yamlfix>=1.19.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["scripts*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
+markers = [
+    "unit: marks tests as unit tests (deselect with '-m not unit')",
+    "functional: marks tests as functional tests (deselect with '-m not functional')",
+    "integration: marks tests as integration tests (deselect with '-m not integration')",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+ignore_missing_imports = true
+
+[tool.yamlfix]
+# Align yamlfix output with the repository's .yamllint policy: the yamllint
+# config sets document-start present=false, so yamlfix must not emit the
+# explicit "---" document-start marker or the two YAML gates would contradict
+# each other (yamlfix would add it, yamllint would warn on it).
+explicit_start = false
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = []
+
+[tool.coverage.run]
+source = ["scripts"]
+branch = true
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 90

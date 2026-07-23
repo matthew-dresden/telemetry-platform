@@ -1,0 +1,24 @@
+{
+  "_source": "Captured from gh CLI: `gh variable list` + `gh api repos/<repo>/environments/<name>` (E10-F2-S3-T1).",
+  "repo": "example-org/telemetry-platform",
+  "variables": {
+    "AWS_DEFAULT_REGION": "us-east-1",
+    "AWS_QA_TERRATEST_ROLE_ARN": "arn:aws:iam::333333333333:role/telemetry-platform-gha-terratest",
+    "AWS_TERRAGRUNT_PLAN_ROLE_ARN": "arn:aws:iam::111111111111:role/telemetry-platform-gha-tg-plan",
+    "LOCK_MAX_AGE_MINUTES": "60"
+  },
+  "environments": {
+    "prod-apply": {
+      "name": "prod-apply",
+      "protection_rule_types": [
+        "required_reviewers"
+      ]
+    },
+    "terratest-approval": {
+      "name": "terratest-approval",
+      "protection_rule_types": [
+        "required_reviewers"
+      ]
+    }
+  }
+}

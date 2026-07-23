@@ -1,0 +1,45 @@
+name: setup-tools
+description: >
+  Set up Python (via actions/setup-python), install uv (via astral-sh/setup-uv),
+  then invoke make tools-ensure to provision the pinned toolchain from .tool-versions.
+  This composite action ensures CI uses the exact same toolchain provisioning path
+  as local developer runs, satisfying the single task interface contract (ledger D28).
+inputs:
+  python-version-file:
+    description: >
+      Path to the file that specifies the Python version to use with setup-python.
+      Defaults to .tool-versions so the pinned Python version is always the source
+      of truth (no hardcoded version in this action).
+    required: false
+    default: .tool-versions
+runs:
+  using: composite
+  steps:
+    # SHA-pinned to v5.6.0 -- prevents supply-chain drift.
+    - name: Set up Python
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+      with:
+        python-version-file: ${{ inputs.python-version-file }}
+
+    # SHA-pinned to v6.1.0 -- prevents supply-chain drift.
+    # No version pin here: setup-uv@v6.1.0 has no file-based version input
+    # (passing 'version-file' emits "Unexpected input(s) 'version-file'"), and
+    # the exact uv version is pinned from .tool-versions by `make tools-ensure`
+    # below -- the single toolchain source of truth. setup-uv only bootstraps a
+    # uv to run `uv sync --frozen` (which honours uv.lock regardless of uv version).
+    - name: Install uv
+      uses: astral-sh/setup-uv@f0ec1fc3b38f5e7cd731bb6ce540c5af426746bb  # v6.1.0
+      with:
+        enable-cache: 'true'
+    # Materialize the project environment (runtime + dev extras) from uv.lock so
+    # every job inherits the same .venv with ruff/mypy/bandit/pytest/pytest-cov/
+    # pyyaml/yamlfix available to `uv run`. --frozen honours uv.lock exactly (no
+    # implicit lockfile update); --extra dev pulls [project.optional-dependencies].dev.
+    # This is the single shared place that provisions the Python toolchain for all
+    # jobs that consume this composite action (python-quality, go-rego-quality, etc.).
+    - name: Sync Python environment (runtime + dev extras) from uv.lock
+      shell: bash
+      run: uv sync --frozen --extra dev
+    - name: Provision pinned toolchain
+      shell: bash
+      run: make tools-ensure

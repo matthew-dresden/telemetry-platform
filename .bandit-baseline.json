@@ -1,0 +1,117 @@
+{
+  "errors": [],
+  "generated_at": "2026-06-18T10:18:42Z",
+  "metrics": {
+    "./scripts/ensure_tools.py": {
+      "CONFIDENCE.HIGH": 3,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 3,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 638,
+      "nosec": 0,
+      "skipped_tests": 0
+    },
+    "_totals": {
+      "CONFIDENCE.HIGH": 3,
+      "CONFIDENCE.LOW": 0,
+      "CONFIDENCE.MEDIUM": 0,
+      "CONFIDENCE.UNDEFINED": 0,
+      "SEVERITY.HIGH": 0,
+      "SEVERITY.LOW": 3,
+      "SEVERITY.MEDIUM": 0,
+      "SEVERITY.UNDEFINED": 0,
+      "loc": 638,
+      "nosec": 0,
+      "skipped_tests": 0
+    }
+  },
+  "results": [
+    {
+      "code": "41 import stat\n42 import subprocess\n43 import sys\n",
+      "col_offset": 0,
+      "end_col_offset": 17,
+      "filename": "./scripts/ensure_tools.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Consider possible security implications associated with the subprocess module.",
+      "line_number": 42,
+      "line_range": [
+        42
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
+      "test_id": "B404",
+      "test_name": "blacklist"
+    },
+    {
+      "code": "404     try:\n405         result = subprocess.run(\n406             [binary, *probe_args],\n407             capture_output=True,\n408             text=True,\n409             check=False,\n410             timeout=10,\n411         )\n412         output = (result.stdout + result.stderr).strip()\n",
+      "col_offset": 17,
+      "end_col_offset": 9,
+      "filename": "./scripts/ensure_tools.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call - check for execution of untrusted input.",
+      "line_number": 405,
+      "line_range": [
+        405,
+        406,
+        407,
+        408,
+        409,
+        410,
+        411
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+      "test_id": "B603",
+      "test_name": "subprocess_without_shell_equals_true"
+    },
+    {
+      "code": "500     timeout = _download_timeout_seconds()\n501     subprocess.run(\n502         [\n503             curl,\n504             \"--fail\",\n505             \"--show-error\",\n506             \"--silent\",\n507             \"--location\",\n508             \"--proto\",\n509             \"=https\",\n510             \"--output\",\n511             str(dest),\n512             url,\n513         ],\n514         check=True,\n515         capture_output=True,\n516         text=True,\n517         timeout=timeout,\n518     )\n519 \n",
+      "col_offset": 4,
+      "end_col_offset": 5,
+      "filename": "./scripts/ensure_tools.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 78,
+        "link": "https://cwe.mitre.org/data/definitions/78.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "subprocess call - check for execution of untrusted input.",
+      "line_number": 501,
+      "line_range": [
+        501,
+        502,
+        503,
+        504,
+        505,
+        506,
+        507,
+        508,
+        509,
+        510,
+        511,
+        512,
+        513,
+        514,
+        515,
+        516,
+        517,
+        518
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
+      "test_id": "B603",
+      "test_name": "subprocess_without_shell_equals_true"
+    }
+  ]
+}

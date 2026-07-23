@@ -1,0 +1,240 @@
+# DISABLED: requires AWS credentials/OIDC; see tracking issue.
+# This lane DEPLOYS TO PROD. The automatic push-to-main trigger is preserved
+# verbatim below (commented out) so re-enabling is a pure uncomment once the AWS
+# accounts and OIDC provider exist. What remains is the manual workflow_dispatch
+# entry point, which requires a deliberate human action and can never fire in CI.
+name: Terragrunt Apply
+on:
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - terragrunt/**
+  # Manual on-demand apply (proves the OIDC apply path without a merge). The
+  # include_dir_flags input supplies the --queue-include-dir scope explicitly,
+  # since a manual run has no push diff to detect units from.
+  workflow_dispatch:
+    inputs:
+      include_dir_flags:
+        description: "Explicit --queue-include-dir flags string for the units to apply"
+        required: true
+        type: string
+# Prod-deploy lane = a single repo-wide SERIALIZED FIFO QUEUE. Concurrent
+# `terragrunt apply` runs against the same remote state would corrupt it, so
+# prod applies MUST be globally serialized. cancel-in-progress: false keeps an
+# in-flight apply from being cancelled mid-run (a half-applied run leaves state
+# inconsistent and orphans infra).
+#
+# RESIDUAL LIMITATION (same as the release lane): GitHub Actions workflow
+# `concurrency` supports only `group` and `cancel-in-progress` -- there is NO
+# `queue` key. (Queue semantics belong to GitHub MERGE QUEUES, not workflow
+# concurrency; an earlier comment claiming a `queue: max` fix "held back by the
+# pinned actionlint" was mistaken -- bumping actionlint would not add a real
+# deep-FIFO.) With cancel-in-progress: false, at most ONE run may be pending; if
+# a newer run is queued while one is already pending, GitHub supersedes the
+# previously-PENDING run. So a burst of 3+ prod-affecting merges landing within
+# the same apply window could drop the middle apply. This is MITIGATED in
+# practice by the repo's GitHub MERGE QUEUE, which serializes PR merges (each
+# spaced by its merge_group build time), so 3+ near-simultaneous prod-affecting
+# merges are unlikely. A true deep-FIFO would require an external mutex/turnstile
+# action, not a workflow-concurrency key. See docs/release-pipeline.md
+# ("Concurrency and FIFO semantics").
+#
+# CONCURRENCY-GROUP RESET (2026-07-16): the previous group key `tg-apply-prod`
+# held a stuck GitHub Actions concurrency lock -- every terragrunt-apply run since
+# 2026-07-01 sat in `pending` with zero jobs dispatched and never reached the
+# prod-apply gate (cancelling and re-running the run did not clear it). Renaming
+# the group key allocates a fresh, unlocked concurrency group so applies dispatch
+# again. The serialization semantics are unchanged; only the lock identity is new.
+concurrency:
+  group: tg-apply-prod-v2
+  cancel-in-progress: false
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  terragrunt-apply:
+    name: terragrunt-apply
+    runs-on: ubuntu-latest
+    environment: prod-apply
+    # Blank the env-keyed named AWS profile so the generated provider/backend use the
+    # ambient OIDC-assumed role credentials (root.hcl: _use_oidc -> empty profile). Without
+    # this the runner would resolve the local-only "telemetry-*" named profile and fail.
+    env:
+      TG_USE_OIDC: 'true'
+      # Provider caching for `terragrunt run --all apply`: without it terragrunt downloads the
+      # ~600MB AWS provider into EACH unit's .terragrunt-cache, and a full-scope apply (20 prod
+      # units) exhausts the runner disk ("Error: Failed to install provider ... no space left on
+      # device"). TG_PROVIDER_CACHE runs Terragrunt's concurrency-safe provider-cache server so all
+      # units share ONE provider copy -- the idiomatic terragrunt fix for run --all on a CI runner.
+      TG_PROVIDER_CACHE: 'true'
+      # Deploy-time get_env() inputs the observability unit's service.hcl reads with NO default
+      # (D8 fail-fast contract): the real prod budget amount + alarm-subscriber email. Sourced
+      # from repo variables (config, not hardcoded).
+      OBSERVABILITY_BUDGET_AMOUNT: ${{ vars.OBSERVABILITY_BUDGET_AMOUNT }}
+      OBSERVABILITY_BUDGET_EMAIL: ${{ vars.OBSERVABILITY_BUDGET_EMAIL }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Configure git auth for in-repo pinned module fetches
+        shell: bash
+        env:
+          GH_JOB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # terragrunt apply fetches the in-repo pinned child modules from the
+          # private git URL (git::https://github.com/example-org/
+          # telemetry-platform.git?ref=...). actions/checkout configures the token only
+          # in the repo-local git config, but terraform/go-getter clones each module
+          # into a fresh temp dir without it and fails with "could not read Username
+          # for https://github.com". Inject the job token via a global url.insteadOf
+          # rewrite so go-getter can read this private repo (contents: read).
+          git config --global \
+            url."https://x-access-token:${GH_JOB_TOKEN}@github.com/".insteadOf \
+            "https://github.com/"
+      - name: Detect changed Terragrunt units (exclude bootstrap; no-op on bootstrap/common-only)
+        id: units
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual run: no push diff -- take the scope from the dispatch input. A manual dispatch
+            # is always an explicit, applyable scope, so has_units=true.
+            printf 'include_dir_flags=%s\n' "${{ inputs.include_dir_flags }}" >> "${GITHUB_OUTPUT}"
+            printf 'has_units=true\n' >> "${GITHUB_OUTPUT}"
+          else
+            # Push to main: detect the changed units and EXCLUDE bootstrap units. Bootstrap units
+            # (bootstrap/<role>_role/...) are operator-applied out-of-band (D40 OIDC provider
+            # prerequisite, D33 sandbox local-only, D-15 state-bootstrap first-apply) -- CI must
+            # never apply them. A push that only touched bootstrap/common files therefore yields an
+            # empty applyable scope, which is a clean CI no-op (has_units=false) rather than a
+            # resolve-role fail-fast on a ci_deploy=false bootstrap account.
+            make tg-detect-apply-units \
+              BASE="${{ github.event.before }}" \
+              HEAD="${{ github.sha }}" \
+              OUTPUT="${GITHUB_OUTPUT}"
+          fi
+      - name: Filter local-only (ci_deploy=false) units from the apply scope (deploy the
+          ci_deploy=true accounts; transparently SKIP the local-only ones)
+        id: filter
+        if: ${{ steps.units.outputs.has_units == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A single push can change a shared file (e.g. _envcommon/*.hcl or common/*.json) whose
+          # dependent scope spans BOTH a ci_deploy=true account (prod / dns-owner) AND the
+          # ci_deploy=false sandbox account (D33: sandbox is applied LOCALLY, never by CI). Resolving
+          # one primary deploy role for such a scope aborts ("apply scope spans service accounts
+          # <prod>,<sandbox>" / ci_deploy=false), so this workflow could never be green for a
+          # sandbox-spanning change -- and it jammed the never-cancel tg-apply-prod lock behind the
+          # prod-apply gate. This step removes the local-only units UP FRONT (the skipped units are
+          # logged on a visible "[skipped: ci_deploy=false / local-only]" line, never silently), so
+          # resolve-deploy-role + tg-apply below see ONLY the CI-deployable units. If the ENTIRE scope
+          # is local-only, has_units=false and every step below is skipped -- a clean no-op SUCCESS,
+          # not a failure. A genuine error (unknown account, missing ci_deploy, unparseable path) still
+          # fails fast, and a scope spanning two ci_deploy=true SERVICE accounts still fails fast in
+          # resolve-deploy-role.
+          make tg-filter-deployable-units \
+            INCLUDE_DIR_FLAGS="${{ steps.units.outputs.include_dir_flags }}" \
+            OUTPUT="${GITHUB_OUTPUT}"
+      - name: Resolve deploy role (env-keyed -- account from env_accounts.json/domains.json,
+          role from accounts.json; fail fast on unknown env/account)
+        id: resolve-role
+        if: ${{ steps.filter.outputs.has_units == 'true' }}
+        shell: bash
+        run: >-
+          make tg-resolve-deploy-role
+          INCLUDE_DIR_FLAGS="${{ steps.filter.outputs.include_dir_flags }}"
+          OUTPUT="${GITHUB_OUTPUT}"
+      - name: Configure AWS credentials (OIDC -- primary apply role resolved from unit path,
+          prod-apply environment gate)
+        if: ${{ steps.filter.outputs.has_units == 'true' }}
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df  # v4.4.0
+        with:
+          # The PRIMARY account's deploy role is the single ambient identity for the whole
+          # run. For a prod-scoped apply this is the prod apply role (telemetry-platform-gha-tg-apply,
+          # account 111111111111). The runner holds exactly ONE ambient role; it is never
+          # clobbered by a second configure-aws-credentials step (WALL 2 root cause -- the old
+          # dns-writer role-chain step left dns-writer ambient, so the prod state preflight ran
+          # as dns-writer and could not DescribeKey the prod state CMK).
+          role-to-assume: ${{ steps.resolve-role.outputs.role_arn }}
+          role-session-name: gha-tg-apply-${{ github.run_id }}
+          aws-region: ${{ steps.resolve-role.outputs.aws_region }}
+          audience: sts.amazonaws.com
+      - name: Export primary CI account id for cross-account per-unit role assumption (WALL 2)
+        if: ${{ steps.filter.outputs.has_units == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # WALL 2 fix: a prod-scoped apply spans the prod service account AND the shared
+          # dns-owner account (the prod _dns_owner/_pretty units). The ambient role above is the
+          # prod apply role -- it cannot satisfy a dns-owner unit's allowed_account_ids guard nor
+          # write that unit's state in the dns-owner account. root.hcl reads TG_CI_PRIMARY_ACCOUNT_ID
+          # and, for any unit whose account DIFFERS from this primary, generates a provider+backend
+          # assume_role to that unit's deploy role (the dns-owner deploy role is the dns-writer,
+          # which the prod apply role is granted sts:AssumeRole on). The primary account's own units
+          # assume nothing -- the ambient role IS their deploy identity (D4). This is the CI analog
+          # of the local env-keyed named-profile model (D8): each unit writes to its account.
+          printf 'TG_CI_PRIMARY_ACCOUNT_ID=%s\n' "${{ steps.resolve-role.outputs.target_account_id }}" >> "${GITHUB_ENV}"
+      - name: State preflight guard
+        if: ${{ steps.filter.outputs.has_units == 'true' }}
+        shell: bash
+        run: make tf-state-preflight
+      - name: Terragrunt apply (change-scoped)
+        if: ${{ steps.filter.outputs.has_units == 'true' }}
+        shell: bash
+        run: make tg-apply INCLUDE_DIR_FLAGS='${{ steps.filter.outputs.include_dir_flags }}'
+      - name: Post-deploy telemetry pipeline validation (Athena queryability + full e2e)
+        if: ${{ steps.filter.outputs.has_units == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Only run when a telemetry-pipeline unit (data-lake or collector-ingestion) is in the
+          # apply scope; unrelated deploys skip this check.
+          flags='${{ steps.filter.outputs.include_dir_flags }}'
+          if ! printf '%s\n' ${flags} | grep -qE '/(data-lake|collector-ingestion)/'; then
+            echo "No telemetry-pipeline unit in the apply scope; skipping post-deploy validation."
+            exit 0
+          fi
+          # (1) Queryability guard: assert the deployed Glue table is enum-projected and
+          # queryable with NO tool filter -- a bare SELECT count(*) MUST SUCCEED (an injected
+          # tool column rejected such queries with CONSTRAINT_VIOLATION). Fast, Athena-only.
+          make e2e-queryability ENV=prod
+          # (2) Full end-to-end: emit synthetic tool='e2e-smoke' telemetry through the REAL
+          # deployed collector from the runner, then reconcile it in the lake via Athena and
+          # auto-delete it. This exercises the entire ingest path (collector -> CWL -> Firehose
+          # -> S3 -> Glue -> Athena), not just the table. It runs from CI because the collector
+          # WAF permits any non-known-malicious source IP (AnonymousIpList removed); --ambient-
+          # credentials makes the verifier use the OIDC-assumed role (no named profile in CI),
+          # and --cleanup removes this run's synthetic e2e-smoke objects afterward.
+          make e2e-all ENV=prod E2E_VERIFY_ARGS="--ambient-credentials --cleanup"
+          # (3) Structured-OTLP regression gate: emit a synthetic STRUCTURED Claude-style
+          # batch (service.name=synthetic-claude-e2e -> tool=e2e-smoke) through the SAME
+          # collector, then reconcile it in the lake via Athena and auto-delete it. This
+          # exercises the registry-driven structured path -- the second ADOT logs pipeline
+          # (filter/keep_structured -> raw_log=false structured exporter) and the cwl_split
+          # reshape into the canonical envelope -- which the flat e2e-smoke path in (2) does
+          # not. It is sequenced AFTER (2): that full emit -> Firehose-buffer -> reconcile
+          # cycle only succeeds once the collector is serving the freshly-applied config, so
+          # it doubles as the readiness barrier for the ECS rollout (no time-based wait). It
+          # is guarded on the structured-OTLP route actually being configured in the
+          # just-applied tool registry, so a deploy made before onboarding any structured-OTLP
+          # tool (or after the route is intentionally removed) skips cleanly instead of
+          # failing.
+          # (4) Structured-metrics regression gate: emit a synthetic OTLP Sum-metrics batch
+          # (service.name=synthetic-claude-e2e -> tool=e2e-smoke) to /v1/metrics through the
+          # SAME collector, then reconcile it in the lake via Athena and auto-delete it. This
+          # exercises the THIRD ADOT pipeline (filter/keep_structured_metrics -> awsemf/EMF
+          # exporter, ADR 0031) and the cwl_split _reshape_emf path -- which neither (2) nor
+          # (3) exercises. Sequenced AFTER (3) on the SAME registry-derived guard: the
+          # metrics route is gated by the identical allowlist as the logs/structured route
+          # (both reuse local.structured_filter_keep_condition in collector-ingestion), so a
+          # deploy made before onboarding (or after the route is intentionally removed) skips
+          # both cleanly instead of failing.
+          if uv run python -c "import json,sys; registry = json.load(open('terragrunt/common/tool-registry.json')); sys.exit(0 if any(t.get('service_names') for t in registry.get('tools', [])) else 1)"; then
+            make e2e-all ENV=prod MODE=structured-events E2E_VERIFY_ARGS="--ambient-credentials --cleanup"
+            make e2e-all ENV=prod MODE=structured-metrics E2E_VERIFY_ARGS="--ambient-credentials --cleanup"
+          else
+            echo "no registry entry has service_names; the structured-OTLP route is not configured -- skipping structured-events/structured-metrics validation."
+          fi

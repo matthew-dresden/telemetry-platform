@@ -1,0 +1,150 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # kinesis-firehose-delivery-stream
+
+  Manages a Kinesis Data Firehose delivery stream that buffers OTLP-derived JSON, converts to Parquet via a Glue catalog table, partitions by `tool`/date using JQ-driven inputs, and writes to the S3 data lake with SSE-KMS (spec 5.A/5.B, resource I7).
+
+  The module provisions an `extended_s3` destination only. Dynamic partitioning expressions are sourced from the `dynamic_partitioning_jq` input (`map(string)`) rather than hardcoded in `main.tf` (T27). When `enable_format_conversion` is true, the `data_format_conversion` variable must reference the Glue database and table produced by the `glue-catalog-database` primitive -- the Glue table is the single source of truth for the Parquet schema (spec 1.B B4).
+
+  ## Resources managed
+
+  - `aws_kinesis_firehose_delivery_stream` -- the delivery stream with `extended_s3` destination, SSE-KMS, optional dynamic partitioning, and optional JSON-to-Parquet format conversion
+  - `aws_cloudwatch_log_group` -- delivery error log group (created only when `cloudwatch_logging_enabled = true`)
+  - `aws_cloudwatch_log_stream` -- delivery error log stream (created only when `cloudwatch_logging_enabled = true`)
+
+  ## Usage
+
+  ```hcl
+  module "firehose" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kinesis-firehose-delivery-stream?ref=providers/aws/primitives/kinesis-firehose-delivery-stream/v0.1.0"
+
+    name        = "telemetry-delivery"
+    bucket_arn  = module.lake_bucket.bucket_arn
+    role_arn    = module.firehose_role.role_arn
+    kms_key_arn = module.lake_kms.key_arn
+
+    enable_format_conversion = true
+    data_format_conversion = {
+      glue_database_name = module.catalog.database_name
+      glue_table_name    = module.catalog.table_name
+      glue_role_arn      = module.glue_role.role_arn
+    }
+
+    dynamic_partitioning_enabled = true
+    dynamic_partitioning_jq = {
+      tool = ".tool"
+      date = "%Y/%m/%d"
+    }
+
+    prefix              = "raw/tool=!{partitionKeyFromQuery:tool}/dt=!{timestamp:yyyy-MM-dd}/"
+    error_output_prefix = "errors/!{firehose:error-output-type}/dt=!{timestamp:yyyy-MM-dd}/"
+
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/basic` -- `extended_s3` destination with format conversion and dynamic partitioning disabled; self-contained: creates its own S3 bucket, KMS key/alias, and IAM role inline; only input is `stream_name` and tag vars
+  - `examples/parquet-partitioned` -- format conversion ON against a Glue database/table, dynamic partitioning ON with an input-driven `dynamic_partitioning_jq` map; self-contained: creates its own S3 bucket, KMS key/alias, Glue database/table, and IAM roles inline; only input is `stream_name` and tag vars
+
+  ## dynamic_partitioning_jq contract (T27)
+
+  The `dynamic_partitioning_jq` variable (`map(string)`, default `{ tool = ".tool", date = "%Y/%m/%d" }`) supplies the JQ metadata extraction expressions used by the Firehose `MetadataExtraction` processor. AWS allows exactly one `MetadataExtraction` processor per delivery stream, so all map entries are merged into a single combined JQ query of the form `{key1:val1,key2:val2,...}`. The key is the partition metadata name and the value is the JQ expression or timestamp pattern. No partition key expressions are hardcoded in `main.tf` -- all partitioning behavior is driven by this input.
+
+  Validation rejects any empty value in the map. A non-empty JQ expression is required for each key.
+
+  ## Record-splitting transform Lambda (transform_lambda_arn)
+
+  When the delivery stream's source is a CloudWatch Logs subscription filter, set
+  `transform_lambda_arn` to the ARN of a Firehose transform Lambda that splits each delivery
+  into individual JSON records. CloudWatch Logs subscription records arrive GZIP-compressed and
+  wrapped in the `{messageType, owner, logGroup, logStream, subscriptionFilters, logEvents[]}`
+  envelope, and a single record batches MANY `logEvents`.
+
+  The AWS-native unwrap path (`Decompression` -> `CloudWatchLogProcessing` ->
+  `RecordDeAggregation`) cannot be used at scale: `RecordDeAggregation` is hard-capped at **500
+  sub-records per record**, so a delivery whose record carries more than 500 events is passed
+  WHOLE to the dynamic-partitioning `MetadataExtraction` JQ engine, which rejects the
+  multi-object blob with `Non JSON record provided`
+  (`DynamicPartitioning.MetadataExtractionFailed`) and routes EVERY event to
+  `errors/metadata-extraction-failed/`.
+
+  Because a Firehose transform Lambda is strictly 1:1 (it cannot emit more records than it
+  received), the Lambda instead decompresses and envelope-strips each record and RE-INGESTS each
+  `logEvents[].message` as its own single-JSON record via `firehose:PutRecordBatch` (marking the
+  original aggregated record `Dropped`). Re-ingestion has no 500-record cap, so a CloudWatch Logs
+  delivery of ANY size is split into individual JSON records. The resulting ordered processor
+  list is `Lambda -> MetadataExtraction`. The Firehose delivery role (`role_arn`) must hold
+  `lambda:InvokeFunction` + `lambda:GetFunctionConfiguration` on the Lambda. `transform_lambda_arn`
+  defaults to `null`, leaving the standalone fixtures with their single `MetadataExtraction`
+  processor unchanged.
+
+  ## data_format_conversion and Glue coupling (B4)
+
+  When `enable_format_conversion = true`, the `data_format_conversion` object must reference the Glue catalog database and table created by the `glue-catalog-database` primitive. The Glue table is the authoritative Parquet schema definition. The `data_format_conversion.glue_role_arn` must belong to a role with `glue:GetTable`, `glue:GetTableVersion`, and `glue:GetTableVersions` permissions on the referenced database and table.
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `name` must match `^[a-zA-Z0-9_.-]+$`. Plans fail for invalid names.
+  - `destination` must be `extended_s3`. Plans fail for other destination types.
+  - `role_arn` must match `^arn:aws:iam::`. Plans fail for invalid ARNs.
+  - `bucket_arn` must match `^arn:aws:s3:::`. Plans fail for invalid ARNs.
+  - `buffering_size` must be between 1 and 128. Plans fail outside this range.
+  - `buffering_interval` must be between 60 and 900. Plans fail outside this range.
+  - `compression_format` must be one of UNCOMPRESSED, GZIP, Snappy, ZIP, or HADOOP_SNAPPY.
+  - `kms_key_arn` must match `^arn:aws:kms:`. Plans fail for non-KMS ARNs.
+  - `data_format_conversion` must be non-null when `enable_format_conversion` is true. Plans fail otherwise.
+  - `dynamic_partitioning_jq` -- each value must be non-empty. Plans fail when any value is empty.
+  - `log_retention_in_days` must be one of the AWS allowed retention values.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

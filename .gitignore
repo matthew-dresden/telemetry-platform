@@ -1,0 +1,54 @@
+# devbench-managed: tracked-orphan cleanup defaults
+# Terraform state and module cache
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+.terraform/
+.terraform.lock.hcl
+.terragrunt-cache/
+
+# Python build / test caches
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Coverage. ``.coverage*`` (no separator) catches the canonical
+# ``.coverage`` file plus pytest-cov's ``.coverage.<ext>`` and the
+# stray ``.coverage (1)`` form that appears when the canonical file
+# is already locked by another process. Git's gitignore globber
+# treats the trailing ``*`` as a no-slash wildcard, so all variants
+# in the same directory match.
+.coverage*
+htmlcov/
+
+# mpm synced artifacts. `mpm install` aggregates packages into .packages/
+# (symlinks into the shared MPM_HOME store) and keeps per-source workspaces
+# under .mpm-data/. Both are regenerable; only .mpm and .mpm.lock are committed.
+.packages/
+.mpm-data/
+
+# Node
+node_modules/
+
+# macOS
+.DS_Store
+
+# Per-module terratest run-id file (written by run_terratest.py for the
+# parallel-safe terratest-sweep-module check; transient, never committed)
+.terratest-run-id
+
+# Sweep reports (FR-4 orphan sweep output; never committed)
+.sweep-reports/
+tools_telemetry.egg-info/
+*.egg-info/
+/dist/
+*.terratest-run-id
+examples/**/terraform*.tfstate*
+
+# OTLP end-to-end test harness run artifacts (sent-manifests, evidence,
+# screenshots; transient, never committed).
+e2e-manifest-*.json
+e2e-evidence/

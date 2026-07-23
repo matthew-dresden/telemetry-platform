@@ -1,0 +1,105 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # quicksight
+
+  Manages an optional Athena `aws_quicksight_data_source` pointed at the cost-capped workgroup. The module is QuickSight Standard-edition compatible: it does not create Enterprise-only resources (groups, group memberships, or row-level-security datasets). It exposes the data source ARN and ID so the `analytics` reference can wire downstream consumers.
+
+  ## Resources managed
+
+  - `aws_quicksight_data_source` (athena) -- optional Athena data source (created only when `athena_data_source` is non-null)
+
+  ## Usage
+
+  ```hcl
+  module "quicksight" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/quicksight?ref=providers/aws/primitives/quicksight/v0.1.0"
+
+    aws_account_id = "123456789012"
+
+    athena_data_source = {
+      data_source_id = "telemetry-athena-source"
+      name           = "Telemetry Athena Data Source"
+      workgroup_name = "telemetry-analytics"
+      catalog        = "AwsDataCatalog"
+      database       = "default"
+    }
+
+    # Optional explicit permission grants (each principal must be a QuickSight user ARN).
+    data_source_permissions = [
+      {
+        principal = "arn:aws:quicksight:us-east-1:123456789012:user/default/telemetry-admin"
+        actions   = ["quicksight:DescribeDataSource", "quicksight:UpdateDataSource", "quicksight:DeleteDataSource", "quicksight:PassDataSource", "quicksight:DescribeDataSourcePermissions", "quicksight:UpdateDataSourcePermissions"]
+      },
+    ]
+
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/basic` -- no Athena data source (the module creates no resources; `data_source_arn`/`data_source_id` are empty)
+  - `examples/with-athena-source` -- an Athena data source pointing at a cost-capped workgroup
+
+  ## QuickSight Standard-edition compatibility
+
+  Sandbox and the target QuickSight subscription are STANDARD edition. QuickSight groups, group memberships, and row-level-security datasets are Enterprise-only features and are not provisioned by this module. The Athena `aws_quicksight_data_source` is the only resource managed; it is supported on Standard edition.
+
+  ## Optional Athena data source
+
+  When `athena_data_source` is non-null, the module creates an `aws_quicksight_data_source` of type `ATHENA` pointing at the specified workgroup. The data source ARN and ID are exposed as outputs. Explicit permission grants can be supplied via `data_source_permissions`; each principal must be a QuickSight user ARN. When no permissions are supplied the data source is created with only the implicit creator access.
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `aws_account_id` must match `^[0-9]{12}$`. Plans fail for non-12-digit values.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

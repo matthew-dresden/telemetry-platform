@@ -1,0 +1,98 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # iam-role
+
+  Manages a single AWS IAM role with its trust (assume-role) policy, optional managed-policy attachments, and optional inline policies.
+
+  Used for provisioning ECS task execution roles, Firehose delivery roles, OIDC-federated CI roles, and other service roles across the telemetry-collector platform.
+
+  ## Resources managed
+
+  - `aws_iam_role` -- the IAM role with trust policy
+  - `aws_iam_role_policy_attachment` -- one attachment per managed policy ARN
+  - `aws_iam_role_policy` -- one inline policy per entry in the inline_policies map
+
+  ## Usage
+
+  ```hcl
+  module "iam_role" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/iam-role?ref=providers/aws/primitives/iam-role/v0.1.0"
+
+    name = "telemetry-ecs-execution"
+    assume_role_policy_json = jsonencode({
+      Version = "2012-10-17"
+      Statement = [{
+        Effect    = "Allow"
+        Principal = { Service = "ecs-tasks.amazonaws.com" }
+        Action    = "sts:AssumeRole"
+      }]
+    })
+    managed_policy_arns = [
+      "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+    ]
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/basic` -- ECS-tasks trust policy, one managed policy attachment
+  - `examples/with-inline` -- Firehose trust policy, two inline policies (S3 write + KMS encrypt)
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `name` must be 64 characters or fewer to satisfy the IAM role name limit. Plans fail if the limit is exceeded.
+  - `assume_role_policy_json` must be a valid JSON string. Plans fail for malformed JSON.
+  - Every value in `inline_policies` must be a valid JSON string. Plans fail if any value is malformed.
+  - `max_session_duration` must be between 3600 and 43200 seconds. Plans fail outside this range.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

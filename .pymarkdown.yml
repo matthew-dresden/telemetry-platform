@@ -1,0 +1,43 @@
+log:
+  level: WARNING
+mode:
+  strict-config: true
+extensions:
+  front-matter:
+    enabled: false
+plugins:
+  heading-style:
+    enabled: true
+    style: atx
+  ul-style:
+    enabled: true
+    style: dash
+  no-trailing-spaces:
+    enabled: true
+  no-multiple-blanks:
+    enabled: true
+    maximum: 1
+  line-length:
+    enabled: false
+  no-hard-tabs:
+    enabled: true
+  no-reversed-links:
+    enabled: true
+  no-duplicate-heading:
+    enabled: true
+    siblings_only: false
+  fenced-code-language:
+    enabled: true
+  first-heading-h1:
+    enabled: false
+  no-empty-links:
+    enabled: true
+scan:
+  ignore:
+    - .venv
+    - node_modules
+    - .terraform
+    - .terragrunt-cache
+    - dist
+    - build
+    - CHANGELOG.md

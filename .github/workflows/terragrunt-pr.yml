@@ -1,0 +1,198 @@
+# DISABLED: requires AWS credentials/OIDC; see tracking issue.
+# The real trigger is preserved verbatim below so re-enabling is a pure
+# uncomment once the AWS accounts and OIDC provider exist. Until then the
+# workflow is manual-dispatch only and can never fire in CI.
+name: Terragrunt PR
+# on:
+#   pull_request:
+#     branches: [main]
+#     # Documentation under the terragrunt tree (e.g. a relocated runbook) is not a
+#     # deployable unit, so a docs-only change must not trigger the plan/apply lane
+#     # (it would detect zero units and fail closed, D3). Mirror this in
+#     # scripts/detect_scope.py, which ignores terragrunt/**/*.md for scope.
+#     paths:
+#       - 'terragrunt/**'
+#       - '!terragrunt/**/*.md'
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+# PR plan lane: per-PR supersession is the one LEGITIMATE cancellation -- a newer
+# push to the SAME PR makes the prior plan run stale, so cancel-in-progress: true
+# cancels it. The group is keyed by PR number, so this lane NEVER shares a group
+# with main / release-pipeline / tg-apply-prod and can never cancel a release or a
+# prod apply. Mirrors pr-validation.yml. (Previously absent: stale plan runs were
+# never superseded and piled up.) See docs/release-pipeline.md.
+concurrency:
+  group: terragrunt-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  # ---------------------------------------------------------------------------
+  # setup: detect the changed units once, then partition them by resolved AWS account
+  # into a matrix so each account's units plan under THAT account's OIDC plan role.
+  #
+  # WALL 1 fix: a single PR can touch leaves in more than one account (e.g. a
+  # providers/aws/** repin referenced by BOTH prod and sandbox leaves, plus the prod
+  # _dns_owner/_pretty singletons that live in the dns-owner account). The root
+  # terragrunt.hcl generates allowed_account_ids = ["<unit account>"] per unit, so a single
+  # plan job under one account's role fails every unit in another account with
+  # "AWS account ID not allowed". One plan job per account, each assuming that account's plan
+  # role, resolves it. The role ARN for each account is RESOLVED from common/accounts.json
+  # (plan_role_name) by scripts.partition_units_by_account -- not a per-account repo variable.
+  # ---------------------------------------------------------------------------
+  setup:
+    name: detect-and-partition
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.partition.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Detect changed Terragrunt units (fail closed on empty scope)
+        id: units
+        shell: bash
+        run: >-
+          make tg-detect-units
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          OUTPUT="${GITHUB_OUTPUT}"
+      - name: Partition changed units by AWS account (per-account plan matrix)
+        id: partition
+        shell: bash
+        run: >-
+          make tg-partition-units
+          MODE=plan
+          INCLUDE_DIR_FLAGS='${{ steps.units.outputs.include_dir_flags }}'
+          OUTPUT="${GITHUB_OUTPUT}"
+
+  terragrunt-plan:
+    name: terragrunt-plan (${{ matrix.account_id }})
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+    # Blank the env-keyed named AWS profile so the generated provider/backend use the
+    # ambient OIDC-assumed role credentials (root.hcl: _use_oidc -> empty profile). Without
+    # this the runner would resolve the local-only "telemetry-*" named profile and fail.
+    env:
+      TG_USE_OIDC: 'true'
+      # Provider caching: a per-account plan scope can span many units (the prod-service account
+      # has 15). Without caching terragrunt downloads the ~600MB AWS provider per unit and a large
+      # scope exhausts the runner disk. TG_PROVIDER_CACHE runs Terragrunt's concurrency-safe
+      # provider-cache server so all units in the scope share one provider copy.
+      TG_PROVIDER_CACHE: 'true'
+      # Deploy-time get_env() inputs the change-scoped validate/plan must supply so
+      # the observability unit (whose service.hcl reads these with no default, per
+      # the D8 missing-value fail-fast contract) evaluates at plan time. These are
+      # TEST INPUTS the runner provides to terragrunt -- NOT in-code production
+      # fallbacks; the .hcl get_env() calls stay default-free. The real budget
+      # values are only consumed at apply, where terragrunt-apply.yml supplies the
+      # genuine values. Placeholders match the copyability test inputs
+      # (scripts/tg_copyability_test.py).
+      OBSERVABILITY_BUDGET_AMOUNT: '100'
+      OBSERVABILITY_BUDGET_EMAIL: 'platform-alerts@example.com'
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Configure git auth for in-repo pinned module fetches
+        shell: bash
+        env:
+          GH_JOB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # terragrunt plan fetches the in-repo pinned child modules from the private
+          # git URL (git::https://github.com/example-org/telemetry-platform.git?ref=...).
+          # actions/checkout configures the token only in the repo-local git config, but
+          # terraform/go-getter clones each module into a fresh temp dir without it and
+          # fails with "could not read Username for https://github.com". Inject the job
+          # token via a global url.insteadOf rewrite so go-getter can read this private
+          # repo (contents: read). Mirrors terragrunt-apply.yml so the change-scoped plan
+          # of a prod (use_pinned_module_sources=true) unit can resolve its pinned modules.
+          git config --global \
+            url."https://x-access-token:${GH_JOB_TOKEN}@github.com/".insteadOf \
+            "https://github.com/"
+      - name: Configure AWS credentials (OIDC -- per-account plan role, no environment gate)
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df  # v4.4.0
+        with:
+          # role_arn is resolved per account by scripts.partition_units_by_account from
+          # common/accounts.json[<account>].plan_role_name. For a single-account PR this is
+          # exactly the prod plan role; for a cross-env PR each account's job assumes its own
+          # account's plan role (WALL 1). No single-plan-role repo-variable coupling.
+          role-to-assume: ${{ matrix.role_arn }}
+          role-session-name: gha-tg-plan-${{ github.run_id }}
+          aws-region: ${{ matrix.aws_region }}
+          audience: sts.amazonaws.com
+      - name: State preflight guard
+        shell: bash
+        run: make tf-state-preflight
+      - name: Validate dependency paths guard
+        shell: bash
+        run: make tf-validate-dependency-paths
+      - name: Guard pinned module sources
+        shell: bash
+        run: make tf-guard-pinned-sources
+      - name: Bucket name uniqueness guard
+        shell: bash
+        run: make tg-bucket-name-unique
+      - name: Terragrunt format check
+        shell: bash
+        run: make tg-format-check
+      - name: Terragrunt security scan (Trivy)
+        shell: bash
+        run: make tg-security
+      - name: Terragrunt validate (change-scoped)
+        shell: bash
+        run: make tg-validate INCLUDE_DIR_FLAGS='${{ matrix.include_dir_flags }}'
+      - name: Filter out never-deployed units (no remote state, issue #244)
+        id: state_filter
+        shell: bash
+        # A PR that edits shared Terragrunt config (root.hcl / _envcommon/*.hcl / common/*.json)
+        # fans out (issue #91) to a LARGE dependent-unit scope that can include units which have
+        # NEVER been applied in this account -- e.g. the qa/dns-owner bootstrap units, which only
+        # ever stand up a state backend + a standing set. You cannot PLAN what was never APPLIED:
+        # `terraform plan` for such a unit fails at backend init because its S3 remote-state bucket
+        # was never created ("... S3 bucket ... does not exist" / NoSuchBucket), blocking the whole
+        # change-scoped plan lane for every shared-config PR (issue #244). This step resolves each
+        # candidate unit's backend bucket+key via `terragrunt render` (zero-drift with root.hcl) and
+        # drops the units whose remote state does not yet exist (transparent INFO log, never a silent
+        # drop), leaving only the plannable (already-deployed) units. Runs under the SAME per-account
+        # plan-role credentials configured above (their s3:GetObject/ListBucket remote-state grant),
+        # and fail-fast on any non-not-found error (a 403/5xx is never masked as "not deployed").
+        # When the ENTIRE account scope is never-deployed it emits has_units=false and the plan step
+        # below is a clean no-op. Plan-lane only: the apply lane keeps its own filters.
+        run: >-
+          make tg-filter-deployed-units
+          INCLUDE_DIR_FLAGS='${{ matrix.include_dir_flags }}'
+          OUTPUT="${GITHUB_OUTPUT}"
+      - name: Terragrunt plan (change-scoped)
+        # Only when >=1 unit in this account has existing remote state (the state filter above); an
+        # all-never-deployed account scope is a clean no-op (has_units=false), not a plan failure.
+        if: ${{ steps.state_filter.outputs.has_units == 'true' }}
+        shell: bash
+        # The gha-tg-plan role is read-only and scoped to remote STATE only (S3 + the
+        # tfstate CMKs), not to live AWS resources. Two flags make a change-scoped plan
+        # work under that least-privilege role:
+        #   -lock=false:    the role cannot write the S3-native state lock object (.tflock),
+        #                   so a default plan aborts with "Error acquiring the state lock 403".
+        #                   A plan mutates no state, so skipping the lock is safe + idiomatic.
+        #   -refresh=false: a default plan REFRESHES every managed resource against the live
+        #                   API (e.g. acm:DescribeCertificate), which the state-only role
+        #                   cannot read ("Error: reading ACM Certificate ... AccessDenied").
+        #                   Planning against stored state validates the config + diff without
+        #                   needing broad resource-read grants on the plan role.
+        # The apply path is unaffected (terragrunt-apply.yml uses a write role that locks +
+        # refreshes). Each matrix job plans only its account's units under that account's plan
+        # role, so the provider allowed_account_ids guard (D4) always matches the caller's
+        # account -- a cross-env PR plans each env cleanly (WALL 1).
+        run: make tg-plan INCLUDE_DIR_FLAGS='${{ steps.state_filter.outputs.include_dir_flags }} -- -lock=false -refresh=false'
+      - name: Terragrunt regression assertions
+        shell: bash
+        run: make tg-regression

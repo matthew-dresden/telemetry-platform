@@ -1,0 +1,103 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # alb-listener
+
+  Attaches listeners (and optional listener rules) to an existing Application Load Balancer created by the `alb` module. Listeners are a SEPARATE module from `alb` (D6): the `alb` module does NOT embed listeners.
+
+  This platform's collector ALB uses an HTTPS listener (HTTPS-only); an HTTP listener is supported as an option (redirect-to-HTTPS) but the platform default attaches only HTTPS.
+
+  ## Resources managed
+
+  - `aws_lb_listener` -- one or more listeners (HTTPS default; optional HTTP redirect)
+  - `aws_lb_listener_rule` -- optional path/host rules (when `listener_rules` is non-empty)
+
+  ## Usage
+
+  ```hcl
+  module "alb_listener" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/alb-listener?ref=providers/aws/primitives/alb-listener/v0.1.0"
+
+    load_balancer_arn = module.alb.alb_arn
+
+    listeners = [
+      {
+        name            = "https"
+        port            = 443
+        protocol        = "HTTPS"
+        ssl_policy      = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+        certificate_arn = module.acm_certificate.certificate_arn
+        default_action = {
+          type             = "forward"
+          target_group_arn = module.alb.target_group_arns["adot-otlp"]
+        }
+      }
+    ]
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/https` -- HTTPS listener on 443 forwarding to a target group with ssl_policy + ACM cert
+  - `examples/http-redirect` -- HTTP 80 redirect-to-HTTPS plus HTTPS 443 listener
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `load_balancer_arn` must start with `arn:aws:elasticloadbalancing:`. Plans fail for non-ARN values.
+  - `listeners` must be non-empty. Plans fail with an empty list.
+  - Each listener `protocol` must be `HTTP` or `HTTPS`.
+  - HTTPS listeners require both `ssl_policy` (non-null, non-empty) and a valid ACM `certificate_arn` starting with `arn:aws:acm:`.
+  - Listeners with a `forward` default action must provide a non-empty `target_group_arn`.
+  - Listeners with a `redirect` default action must provide a `redirect` configuration block.
+  - Each `listener_rules` entry must have `priority` between 1 and 50000.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

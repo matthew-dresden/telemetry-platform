@@ -1,0 +1,203 @@
+name: PR Validation
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  # Merge-queue validation: GitHub validates each queued PR on a temporary
+  # gh-readonly-queue/<base>/pr-<n>-<sha> merge_group ref. The required-checks
+  # aggregate this workflow produces is a branch-protection required check, so it
+  # MUST report on the merge_group event or the queue would hang forever waiting
+  # for a check that never runs. See docs/release-pipeline.md ("GitHub Merge Queue").
+  merge_group:
+    types: [checks_requested]
+permissions:
+  contents: read
+  pull-requests: read
+  id-token: write
+# PR validation lane: per-PR supersession is the one LEGITIMATE cancellation --
+# a newer push to the SAME PR makes the prior validation run stale, so
+# cancel-in-progress: true cancels it. Keyed by PR number, this lane NEVER shares
+# a group with main / release-pipeline / tg-apply-prod, so it can never cancel a
+# release or a prod apply. See docs/release-pipeline.md.
+#
+# Merge-queue runs are keyed by the unique merge_group head sha and NEVER cancelled:
+# each queued entry's validation is distinct, and cancelling it would report a
+# failed/cancelled required check to the queue and wrongly evict the PR. (The
+# pull_request expression would key on the absent pull_request.number on a
+# merge_group event, collapsing every queue run into one self-cancelling group.)
+concurrency:
+  group: >-
+    ${{ github.event_name == 'merge_group'
+    && format('pr-validation-mq-{0}', github.event.merge_group.head_sha)
+    || format('pr-validation-{0}', github.event.pull_request.number) }}
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
+jobs:
+  pr-title-check:
+    name: pr-title-check
+    # Skipped on merge_group: the merge_group payload carries no pull_request.title, and the
+    # title is immutable PR metadata already validated when the PR ran (a skipped required
+    # need counts as PASS in the aggregate -- this is not a weakening). Running it here with
+    # an empty title would fail every queue entry and lock the branch.
+    if: ${{ github.event_name != 'merge_group' && github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+      - uses: ./.github/actions/setup-tools
+      - name: Validate PR title (conventional commit)
+        shell: bash
+        run: make validate-pr-title PR_TITLE="${PR_TITLE}"
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+  scope-detection:
+    name: scope-detection
+    if: ${{ github.event_name == 'merge_group' || github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    outputs:
+      scope: ${{ steps.detect.outputs.scope }}
+      module_path: ${{ steps.detect.outputs.module_path }}
+      modules: ${{ steps.detect.outputs.modules }}
+      version_only: ${{ steps.detect.outputs.version_only }}
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b  # v2.0.6
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+      - uses: ./.github/actions/setup-tools
+      # PR path: read the detect-scope-override label + author straight from the
+      # pull_request event payload (fail-closed org-admin authorization).
+      - name: Check detect-scope-override label (pull_request)
+        id: override_pr
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        shell: bash
+        run: >-
+          make check-scope-override
+          AUTHOR='${{ github.event.pull_request.user.login }}'
+          ORG='${{ github.repository_owner }}'
+          OUTPUT="${GITHUB_OUTPUT}"
+      # Merge-queue path: the merge_group payload carries no labels/author. Resolve the
+      # queued PR (its number is embedded in the head ref) via the API and apply the SAME
+      # fail-closed org-admin authorization, so a deliberately admin-authorized scope=all PR
+      # is not re-rejected as multi-module during its queue validation.
+      - name: Resolve detect-scope-override label (merge_group)
+        id: override_mq
+        if: ${{ github.event_name == 'merge_group' }}
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        shell: bash
+        run: >-
+          make check-mq-scope-override
+          HEAD_REF='${{ github.event.merge_group.head_ref }}'
+          REPO='${{ github.repository }}'
+          ORG='${{ github.repository_owner }}'
+          OUTPUT="${GITHUB_OUTPUT}"
+      # Exactly one of the two override steps runs; the other is skipped and contributes an
+      # empty string, so the `||` selects the resolved value. The diff range is robust on
+      # both events: on merge_group, HEAD is the merge_group ref (latest main + the queued
+      # PR), so origin/main...HEAD is exactly the PR's changes.
+      - name: Detect PR scope
+        id: detect
+        shell: bash
+        run: >-
+          make scope-detect
+          DIFF_RANGE='origin/main...HEAD'
+          SCOPE_OVERRIDE='${{ steps.override_pr.outputs.scope_override || steps.override_mq.outputs.scope_override }}'
+          OUTPUT="${GITHUB_OUTPUT}"
+  python-quality:
+    name: python-quality
+    if: ${{ github.event_name == 'merge_group' || github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Python format + lint + typecheck + security + coverage gate
+        shell: bash
+        run: make python-quality
+  go-rego-quality:
+    name: go-rego-quality
+    if: ${{ github.event_name == 'merge_group' || github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Go format + lint + vuln + coverage gate
+        shell: bash
+        run: make go-format go-lint go-vuln go-unit-test-coverage
+      - name: Rego format + lint + coverage gate
+        shell: bash
+        run: make rego-format rego-lint rego-unit-test-coverage
+  module-var-wiring:
+    # Guard (#235): fail-closed if a module PR adds a new REQUIRED module variable
+    # (no default) that a consuming terragrunt leaf does not wire. A module-only PR
+    # does not trigger the terragrunt plan lane, so this static guard is the only
+    # check that catches the unwired-required-input class before it breaks a
+    # post-merge `terragrunt plan`/`apply`. fetch-depth: 0 makes origin/main and the
+    # diff base available (origin/main...HEAD is exactly the PR's changes on both the
+    # pull_request and merge_group events -- see scope-detection).
+    name: module-var-wiring
+    if: ${{ github.event_name == 'merge_group' || github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Guard module required-variable leaf wiring (#235)
+        shell: bash
+        run: make check-required-var-wiring DIFF_RANGE='origin/main...HEAD'
+  validations:
+    name: validations
+    needs: [scope-detection]
+    if: ${{ github.event_name == 'merge_group' || github.actor != 'github-actions[bot]' }}
+    uses: ./.github/workflows/validations.yml
+    with:
+      scope: ${{ needs.scope-detection.outputs.scope }}
+      module_path: ${{ needs.scope-detection.outputs.module_path }}
+      modules: ${{ needs.scope-detection.outputs.modules }}
+      version_only: ${{ needs.scope-detection.outputs.version_only }}
+      run_merge_simulation: true
+      # On merge_group, skip the terratest-approval-gated tf-test: the PR already ran +
+      # approved terratest before being queued, and the tf-test job uses the MANUAL
+      # terratest-approval environment -- running it on a merge_group would leave the queue
+      # entry waiting on a human approval forever, hanging the merge queue (identical reason
+      # the post-merge release path passes run_terratest: false). PR runs keep the default.
+      #
+      # DISABLED: requires AWS credentials/OIDC; see tracking issue. tf-test is the
+      # only job in the active lane that assumes an AWS OIDC role, so it is pinned
+      # off here rather than deleted -- restore the expression below to re-enable.
+      # run_terratest: ${{ github.event_name != 'merge_group' }}
+      run_terratest: false
+    secrets: inherit
+  required-checks:
+    name: required-checks
+    needs:
+      - pr-title-check
+      - scope-detection
+      - python-quality
+      - go-rego-quality
+      - module-var-wiring
+      - validations
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+      - uses: ./.github/actions/setup-tools
+      - name: Aggregate required-check results
+        shell: bash
+        env:
+          RESULTS: ${{ toJson(needs) }}
+        run: make required-checks-aggregate

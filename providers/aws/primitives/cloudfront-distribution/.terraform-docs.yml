@@ -1,0 +1,123 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # cloudfront-distribution
+
+  Manages a hardened CloudFront distribution fronting an ALB over the public internet (`alb`/`custom` origin), a PRIVATE/INTERNAL ALB inside a VPC (`vpc` origin, via a CloudFront VPC origin), or an S3 static portal app (`s3` origin), with optional WAF association, ACM viewer certificate pinned to `TLSv1.2_2021` with `sni-only` SSL support, Origin Access Control (OAC) for S3 origins, and a security response-headers policy (HSTS, X-Content-Type-Options, X-Frame-Options, referrer-policy, XSS-protection per the CLAUDE.md API security headers requirement).
+
+  **VPC origin (`origin.origin_type = "vpc"`):** set `origin.vpc_origin_arn` to the ARN of an internal Application Load Balancer (or NLB/EC2 instance) inside a VPC and CloudFront reaches it over a private, CloudFront-managed connection through an `aws_cloudfront_vpc_origin` -- the origin never has to be internet-facing. CloudFront routes to the resource by the VPC origin (the ARN), **not** by public DNS resolution of `origin.domain_name`, so a `domain_name` that resolves (publicly) to this same distribution does **not** create a CloudFront-to-CloudFront origin self-loop. `origin.domain_name` is still required and is used for the Host header and TLS SNI/certificate validation, so for an `https-only` VPC origin it must be a name the origin's TLS certificate covers. The origin's security group must allow inbound from the CloudFront origin-facing managed prefix list (`com.amazonaws.global.cloudfront.origin-facing`) on the listener port (configured by the caller -- see the `collector-ingestion` reference). The VPC origin's `Name` is derived from `origin.origin_id` and **deterministically bounded** to CloudFront's 64-character VPC origin Name limit (`CreateVpcOrigin` rejects a longer Name with "The parameter VPC Origin Name is too big."): when `<origin_id>-vpc-origin` fits it is used verbatim, otherwise the namespace-derived portion is truncated and an 8-hex-character `sha256` discriminator is appended so the bounded name stays unique -- the caller does not need to shorten `origin_id` (see `vpc_origin_name`). CreateVpcOrigin additionally requires the target ALB's VPC to have an internet gateway.
+
+  Used as the shared edge primitive by both the `collector-ingestion` and `portal` reference modules.
+
+  **OTLP collector requirement (docs/adr/ D11):** When this module fronts the OTLP collector distribution, set `default_root_object = ""` (empty string, the default). The OTLP collector path `/v1/logs` is non-cacheable and there is no root document. Setting a non-empty `default_root_object` for collector distributions is a misconfiguration -- the portal shape should use `"index.html"` instead.
+
+  ## Resources managed
+
+  - `aws_cloudfront_distribution` -- the CloudFront distribution
+  - `aws_cloudfront_origin_access_control` -- OAC for S3 origins (created only when `origin.origin_type = "s3"` and `origin.s3_oac_enabled = true`)
+  - `aws_cloudfront_vpc_origin` -- VPC origin reaching a private/internal ALB/NLB/EC2 inside a VPC (created only when `origin.origin_type = "vpc"`)
+  - `aws_cloudfront_response_headers_policy` -- security headers policy (created only when `enable_response_headers_policy = true`)
+
+  ## Usage
+
+  ```hcl
+  module "cloudfront" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/cloudfront-distribution?ref=providers/aws/primitives/cloudfront-distribution/v0.1.0"
+
+    aliases             = ["collector.prod.telemetry.example.com"]
+    acm_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/my-cert-id"
+    web_acl_id          = "arn:aws:wafv2:us-east-1:123456789012:global/webacl/collector-waf/some-id"
+
+    origin = {
+      domain_name                   = "internal-alb.us-east-1.elb.amazonaws.com"
+      origin_id                     = "collector-alb"
+      origin_type                   = "custom"
+      custom_origin_protocol_policy = "https-only"
+      custom_origin_ssl_protocols   = ["TLSv1.2"]
+      s3_oac_enabled                = false
+    }
+
+    default_cache_behavior = {
+      allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+      cached_methods         = ["GET", "HEAD"]
+      viewer_protocol_policy = "redirect-to-https"
+      compress               = true
+    }
+
+    enable_response_headers_policy = true
+
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/alb-origin` -- ALB/custom origin with WAF attached and response-headers policy enabled; models a public-internet origin
+  - `examples/vpc-origin` -- `vpc` origin reaching a private/internal ALB via a CloudFront VPC origin (no public custom origin, no self-loop); models the OTLP collector edge after the origin self-loop fix
+  - `examples/vpc-origin-long-name` -- `vpc` origin driven with a REPRESENTATIVE LONG namespace-derived `origin_id` so the natural `<origin_id>-vpc-origin` name overflows CloudFront's 64-character VPC origin Name limit; the fixture stands up a real internal ALB (whose VPC has an internet gateway) and a DNS-validated ACM cert so the apply proves the module's deterministic Name bound is accepted by CreateVpcOrigin
+  - `examples/s3-origin` -- S3 origin with OAC enabled and response-headers policy disabled; models the portal edge; fixture creates a throwaway S3 bucket as origin
+
+  ### CloudFront standard-logging bucket requirements
+
+  When `logging_config` is set, CloudFront standard logging (legacy) requires the target log bucket to have ACLs enabled (S3 Object Ownership `BucketOwnerPreferred`, not `BucketOwnerEnforced`), grant `FULL_CONTROL` to the CloudFront log-delivery account (canonical user id from the `aws_cloudfront_log_delivery_canonical_user_id` data source), and use SSE-S3 (`AES256`). SSE-KMS with a customer CMK and ACL-disabled buckets are rejected by CloudFront standard logging. The example fixtures create a dedicated log bucket configured this way.
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `aliases` must be non-empty. Plans fail for empty lists.
+  - `acm_certificate_arn` must not be empty and must match `^arn:aws:acm:us-east-1:`. Plans fail for missing or non-us-east-1 ARNs (CloudFront requirement).
+  - `web_acl_id`, when provided, must match `^arn:aws:wafv2:`. Plans fail for non-WAFv2 ARNs.
+  - `origin.origin_type` must be one of `alb`, `custom`, `vpc`, or `s3`. Plans fail for other values.
+  - `origin.vpc_origin_arn` must be set (non-empty) when `origin.origin_type = "vpc"`, and must be unset for every other origin type. Plans fail otherwise.
+  - `default_cache_behavior.viewer_protocol_policy` must be one of `redirect-to-https`, `https-only`, or `allow-all`.
+  - `price_class` must be one of `PriceClass_100`, `PriceClass_200`, or `PriceClass_All`.
+  - `minimum_protocol_version` must be `TLSv1.2_2021`. Values below `TLSv1.2_2021` (including TLSv1.2_2019, TLSv1.2_2018, TLSv1.1_2016, TLSv1_2016) are rejected to enforce DoD-required strong transport security per docs/terragrunt-concepts.md.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

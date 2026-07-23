@@ -1,0 +1,109 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # s3-bucket
+
+  Manages a hardened S3 bucket with full block-public-access, SSE-KMS encryption with bucket key enabled, versioning, input-driven lifecycle rules for the data lake retention model, ownership controls, optional access logging, and an optional bucket policy.
+
+  Used as the common baseline for all S3 buckets in the telemetry-collector platform: raw data lake, curated lake, Athena results, SPA origin, access-log, and artifact buckets.
+
+  ## Resources managed
+
+  - `aws_s3_bucket` -- the S3 bucket
+  - `aws_s3_bucket_versioning` -- versioning configuration
+  - `aws_s3_bucket_public_access_block` -- all four block-public-access settings enforced true
+  - `aws_s3_bucket_server_side_encryption_configuration` -- SSE-KMS with bucket_key_enabled
+  - `aws_s3_bucket_ownership_controls` -- object ownership setting
+  - `aws_s3_bucket_lifecycle_configuration` -- lifecycle rules (created only when lifecycle_rules is non-empty)
+  - `aws_s3_bucket_logging` -- access logging (created only when access_log_target_bucket is set)
+  - `aws_s3_bucket_policy` -- bucket policy (created only when bucket_policy_json is provided)
+
+  ## Usage
+
+  ```hcl
+  module "s3_bucket" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/s3-bucket?ref=providers/aws/primitives/s3-bucket/v0.1.0"
+
+    bucket_name = "my-data-lake-raw"
+    kms_key_arn = "arn:aws:kms:us-east-1:123456789012:key/my-key-id"
+
+    lifecycle_rules = [
+      {
+        id                       = "data-lake-retention"
+        enabled                  = true
+        prefix                   = ""
+        transition_days          = 365
+        transition_storage_class = "GLACIER"
+        expiration_days          = 730
+      }
+    ]
+
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/basic` -- KMS-encrypted, versioned, full block-public-access, no lifecycle rules
+  - `examples/data-lake` -- Glacier@365 + expire@730 lifecycle with force_destroy enabled for test cleanup
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `bucket_name` must match `^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$`. Plans fail for invalid names.
+  - `kms_key_arn` must match `^arn:aws:kms:`. Plans fail for non-KMS ARNs.
+  - `block_public_access` -- all four settings must be true. Plans fail for partial configuration (D22 hardening).
+  - `object_ownership` must be one of `BucketOwnerEnforced`, `BucketOwnerPreferred`, or `ObjectWriter`.
+  - `lifecycle_rules[*].transition_storage_class` must be one of `GLACIER`, `GLACIER_IR`, or `DEEP_ARCHIVE`. Plans fail for other values.
+  - `lifecycle_rules[*].expiration_days` must be a positive integer when specified.
+  - `lifecycle_rules[*].expiration_days` must be greater than `transition_days` when both are specified.
+  - `bucket_policy_json`, when provided, must be valid JSON.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

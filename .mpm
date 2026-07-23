@@ -1,0 +1,20 @@
+# mpm source declarations for the telemetry-platform monorepo.
+#
+# mpm (https://github.com/matthew-dresden/mpm) auto-discovers this file by
+# walking up from the current working directory, so every per-module Makefile
+# under providers/ resolves against this single declaration -- there is no
+# per-module config file.
+#
+# Sources are auto-discovered from MPM_SOURCE_<name>_URL keys and processed in
+# alphabetical order by name. `mpm install` resolves each source, syncs its
+# projects, aggregates them into .packages/ via symlinks under the shared
+# MPM_HOME store, and writes the exact resolved SHAs to .mpm.lock.
+#
+# Install the CLI with:
+#   pipx install git+https://github.com/matthew-dresden/mpm@v1.0.0
+
+MPM_SOURCE_terraform-modules_URL=https://github.com/matthew-dresden/mpm.git
+MPM_SOURCE_terraform-modules_REF=refs/tags/v1.0.0
+MPM_SOURCE_terraform-modules_PATH=repo-specs/terraform/terraform-modules-monorepo/modules/meta.xml
+MPM_SOURCE_terraform-modules_NAME=terraform-modules-monorepo
+MPM_SOURCE_terraform-modules_GITBASE=https://github.com/matthew-dresden/

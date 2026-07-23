@@ -1,0 +1,307 @@
+name: Validations
+# Reusable workflow (workflow_call): intentionally declares NO `concurrency:`.
+# A called workflow runs as part of its CALLER's run, so it inherits the caller's
+# workflow-level concurrency -- pr-validation's per-PR group (cancel-in-progress:
+# true) or main-validation's release-pipeline group (cancel-in-progress: false).
+# Declaring a fixed group here would make the PR-invoked and release-invoked
+# validations share ONE group and cancel each other -- the exact cross-lane
+# cancellation this design must avoid. See docs/release-pipeline.md.
+on:
+  workflow_call:
+    inputs:
+      scope:
+        required: true
+        type: string
+      module_path:
+        required: false
+        type: string
+        default: ''
+      modules:
+        required: false
+        type: string
+        default: '[]'
+      version_only:
+        # 'true' when a module-scope change touches only VERSION file(s) -- a release trigger
+        # with no code/test change, so the terratest (tf-test) job is skipped for it.
+        required: false
+        type: string
+        default: 'false'
+      run_merge_simulation:
+        required: true
+        type: boolean
+      run_terratest:
+        # When false (the post-merge release pipeline path), the terratest-approval-gated
+        # tf-test job is skipped: the PR already ran + approved terratest before merge, so
+        # re-running it on the release run is redundant. Because tf-test uses the manual
+        # terratest-approval environment, running it on a release run leaves that run
+        # waiting for approval, holding the release-pipeline concurrency lock
+        # (cancel-in-progress: false) and starving every subsequent release. PR callers
+        # omit this input and get the default (true), so PR terratest is unchanged.
+        required: false
+        type: boolean
+        default: true
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  simulate-merge:
+    name: simulate-merge
+    if: ${{ inputs.run_merge_simulation }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Simulate merge into origin/main
+        shell: bash
+        run: make simulate-merge
+  check-version-immutability:
+    name: check-version-immutability
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b  # v2.0.6
+        with:
+          app-id: ${{ secrets.GH_APP_ID }}
+          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Check version immutability (repo-wide root VERSION, config scope)
+        shell: bash
+        run: >-
+          make check-version-immutability
+          SCOPE=config
+          BASE_REF="${{ inputs.run_merge_simulation && 'origin/main' || 'HEAD~1' }}"
+  tg-no-hardcoded-identity:
+    name: tg-no-hardcoded-identity
+    needs: [simulate-merge, check-version-immutability]
+    if: >-
+      always() &&
+      (needs.simulate-merge.result == 'success' || needs.simulate-merge.result ==
+      'skipped') &&
+      needs.check-version-immutability.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Anti-hardcode identity lint
+        shell: bash
+        run: make tg-no-hardcoded-identity
+  tg-copyability-test:
+    name: tg-copyability-test
+    needs: [simulate-merge, check-version-immutability]
+    # Copyability proves the Terragrunt LIVE TREE is relocatable -- a terragrunt-scope concern.
+    # It is irrelevant to a module release (which changes no live-tree paths), so it runs only
+    # for terragrunt/all scope. This keeps module-release PRs from being gated by a tree test.
+    if: >-
+      always() &&
+      (inputs.scope == 'terragrunt' || inputs.scope == 'all') &&
+      (needs.simulate-merge.result == 'success' || needs.simulate-merge.result ==
+      'skipped') &&
+      needs.check-version-immutability.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Free disk space for per-unit provider installs
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The copyability test copies the whole live tree and runs
+          # `terraform init` for every unit; each install of the AWS provider
+          # consumes hundreds of MB, and across the region-level copy (all
+          # accounts and units) that exceeds the runner's default free disk
+          # ("Error while installing hashicorp/aws: write: no space left on
+          # device"). Remove large preinstalled toolchains this job does not use
+          # (dotnet, android, ghc, boost, swift) to free space. The Python
+          # toolchain under /opt/hostedtoolcache is left intact because the test
+          # runner needs it.
+          before="$(df -B1 --output=avail / | tail -1)"
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/.ghcup /usr/local/share/boost /usr/share/swift \
+            /opt/hostedtoolcache/CodeQL /usr/local/graalvm \
+            /usr/local/share/powershell /usr/local/share/chromium \
+            /opt/hostedtoolcache/Ruby /opt/hostedtoolcache/go || true
+          after="$(df -B1 --output=avail / | tail -1)"
+          echo "Freed $(( (after - before) / 1024 / 1024 )) MiB; now:"
+          df -h /
+      - name: Configure git auth for in-repo pinned module fetches
+        shell: bash
+        env:
+          GH_JOB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # The prod-account copied units pin their child module sources to the
+          # in-repo git URL (git::https://github.com/example-org/
+          # telemetry-platform.git?ref=...). actions/checkout configures the job
+          # token only in the repo-local git config, but terraform/go-getter
+          # clones each module into a fresh temp dir where that config does not
+          # apply, so the clone fails with "could not read Username for
+          # https://github.com". Inject the job token via a global url.insteadOf
+          # rewrite so go-getter can read this private repo (contents: read).
+          git config --global \
+            url."https://x-access-token:${GH_JOB_TOKEN}@github.com/".insteadOf \
+            "https://github.com/"
+      - name: Terragrunt copy-at-any-level test
+        shell: bash
+        run: make tg-copyability-test
+  tf-guard-pinned-sources:
+    name: tf-guard-pinned-sources
+    needs: [simulate-merge, check-version-immutability]
+    if: >-
+      always() &&
+      (needs.simulate-merge.result == 'success' || needs.simulate-merge.result ==
+      'skipped') &&
+      needs.check-version-immutability.result == 'success' &&
+      (inputs.scope == 'terragrunt' || inputs.scope == 'all')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Pinned-sources guard
+        shell: bash
+        run: make tf-guard-pinned-sources
+  tf-guard-const-sources:
+    name: tf-guard-const-sources
+    needs: [simulate-merge, check-version-immutability]
+    if: >-
+      always() &&
+      (needs.simulate-merge.result == 'success' || needs.simulate-merge.result ==
+      'skipped') &&
+      needs.check-version-immutability.result == 'success' &&
+      (inputs.scope == 'module' || inputs.scope == 'terragrunt' || inputs.scope ==
+      'all')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Const-sources guard
+        shell: bash
+        run: make tf-guard-const-sources
+  module-validate:
+    name: module-validate
+    needs: [simulate-merge, check-version-immutability]
+    # Skip for VERSION-only release PRs (inputs.version_only == 'true'): a version bump changes no
+    # module .tf code, so re-validating it (OPA policy, fmt, tflint, terraform validate/plan, docs)
+    # is redundant -- the module was validated when its code last changed. Real module-code changes
+    # still run module-validate.
+    if: >-
+      always() &&
+      (needs.simulate-merge.result == 'success' || needs.simulate-merge.result ==
+      'skipped') &&
+      needs.check-version-immutability.result == 'success' &&
+      (inputs.scope == 'module' || inputs.scope == 'all') &&
+      inputs.version_only != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(inputs.scope == 'all' && inputs.modules || format('["{0}"]', inputs.module_path)) }}
+    env:
+      MODULE_PATH: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-tools
+      - name: Resolve module type from monorepo-config
+        id: mtype
+        shell: bash
+        run: make resolve-module-type MODULE_PATH="${MODULE_PATH}" OUTPUT="${GITHUB_OUTPUT}"
+      - name: OPA module-validate
+        shell: bash
+        run: make module-validate MODULE_PATH="${MODULE_PATH}" MODULE_TYPE="${{ steps.mtype.outputs.module_type }}"
+      - name: terraform fmt -check
+        shell: bash
+        run: make tf-format MODULE_PATH="${MODULE_PATH}"
+      - name: tflint
+        shell: bash
+        run: make tf-lint MODULE_PATH="${MODULE_PATH}"
+      - name: Trivy config (misconfig)
+        shell: bash
+        run: make tf-security MODULE_PATH="${MODULE_PATH}"
+      - name: terraform-docs check
+        shell: bash
+        run: make tf-docs-check MODULE_PATH="${MODULE_PATH}"
+      - name: terraform validate (examples, init -backend=false)
+        shell: bash
+        run: make tf-validate MODULE_PATH="${MODULE_PATH}"
+      - name: Go format + lint + vuln on module tests
+        shell: bash
+        run: make go-format go-lint go-vuln
+  tf-test:
+    name: tf-test
+    needs: [module-validate]
+    # Skip for VERSION-only release PRs (inputs.version_only == 'true'): a version bump has no
+    # code/test change, so re-running terratest is redundant (the module was terratest-verified
+    # when its code last changed). This also keeps release-trigger PRs off the terratest-approval
+    # gate + qa-OIDC. Real module-code changes still run terratest.
+    if: >-
+      always() && needs.module-validate.result == 'success' &&
+      (inputs.scope == 'module' || inputs.scope == 'all') &&
+      inputs.version_only != 'true' &&
+      inputs.run_terratest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment: terratest-approval
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(inputs.scope == 'all' && inputs.modules || format('["{0}"]', inputs.module_path)) }}
+    env:
+      MODULE_PATH: ${{ matrix.module }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
+      - uses: ./.github/actions/setup-tools
+      - name: Configure AWS credentials (OIDC)
+        if: startsWith(env.MODULE_PATH, 'providers/aws/')
+        uses: aws-actions/configure-aws-credentials@b47578312673ae6fa5b5096b330d9fbac3d116df  # v4.4.0
+        with:
+          role-to-assume: ${{ vars.AWS_QA_TERRATEST_ROLE_ARN }}
+          role-session-name: gha-pr-${{ github.run_id }}
+          aws-region: ${{ vars.AWS_DEFAULT_REGION }}
+          audience: sts.amazonaws.com
+      - name: Run terratest
+        shell: bash
+        # providers/aws reference fixtures that stand up a real ACM cert
+        # (collector-ingestion) need a real NS-delegatable sandbox domain plus the id of
+        # its live parent public zone so the per-run validation sub-zone is delegated and
+        # ACM DNS validation reaches ISSUED. These TF_VAR_* values are consumed only by
+        # the aws example fixtures that declare them; terraform ignores TF_VAR_* for
+        # modules that do not declare the matching variable, so they are inert for every
+        # other module on the matrix. Sourced from repo variables (no hardcoded values).
+        env:
+          TF_VAR_sandbox_domain: ${{ vars.AWS_QA_SANDBOX_DOMAIN }}
+          TF_VAR_sandbox_parent_zone_id: ${{ vars.AWS_QA_SANDBOX_PARENT_ZONE_ID }}
+        run: make tf-test MODULE_PATH="${MODULE_PATH}"
+      - name: Sweep this run's orphaned terratest resources (always runs to clean up on failure)
+        # Run-SCOPED sweep: deletes ONLY resources tagged with THIS run's
+        # terratest-run id (read from $(MODULE_PATH)/.terratest-run-id, written by
+        # run_terratest.py). A global SWEEP_MODE=delete here races against other
+        # concurrent module-PR tf-test jobs -- each one's account-wide sweep tries
+        # to delete the OTHER in-flight runs' VPCs/subnets/clusters, producing
+        # DependencyViolation / InvalidSubnetID.NotFound / ClusterNotFoundException
+        # and failing the job. Scoping by run id makes concurrent PR sweeps
+        # non-conflicting. The daily terratest-sweep.yml still does the global sweep.
+        if: always() && startsWith(env.MODULE_PATH, 'providers/aws/')
+        shell: bash
+        run: make terratest-sweep-module MODULE_PATH="${MODULE_PATH}" SWEEP_MODE=delete

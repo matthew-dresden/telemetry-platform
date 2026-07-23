@@ -1,0 +1,8 @@
+{
+  "telemetry-useast1-sandbox-000-collector_ingestion-000": {
+    "vpc_cidr_block": "10.1.0.0/16"
+  },
+  "telemetry-useast1-prod-000-collector_ingestion-000": {
+    "vpc_cidr_block": "10.0.0.0/16"
+  }
+}

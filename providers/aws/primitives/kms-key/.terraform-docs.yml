@@ -1,0 +1,87 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # kms-key
+
+  Manages a single customer-managed KMS CMK with a companion alias, key rotation, and an optional resource policy.
+
+  Used for encrypting S3 data lake buckets, Kinesis Firehose, SSM SecureString parameters, and QuickSight SPICE datasets across the telemetry-collector platform.
+
+  ## Resources managed
+
+  - `aws_kms_key` -- the customer-managed key
+  - `aws_kms_alias` -- the human-readable alias targeting the key
+
+  ## Usage
+
+  ```hcl
+  module "kms_key" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/kms-key?ref=providers/aws/primitives/kms-key/v0.1.0"
+
+    alias_name          = "my-service-key"
+    enable_key_rotation = true
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/basic` -- rotation on, default KMS policy
+  - `examples/with-policy` -- custom resource policy, multi-region enabled
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `alias_name` must match `^[A-Za-z0-9/_-]+$`. Plans fail if the pattern is not satisfied.
+  - `deletion_window_in_days` must be between 7 and 30 inclusive. Plans fail outside this range.
+  - `key_usage` must be one of `ENCRYPT_DECRYPT`, `SIGN_VERIFY`, or `GENERATE_VERIFY_MAC`.
+  - `policy_json`, when provided, must be valid JSON. Plans fail for malformed JSON.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

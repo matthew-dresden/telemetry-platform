@@ -1,0 +1,9 @@
+{
+  "_comment": "External AWS principals granted cross-account READ on the telemetry data lake (S3 GetObject/ListBucket on the lake bucket + kms:Decrypt/DescribeKey on the telemetry-data CMK). This is the exempt common/ mapping layer, so external account ids never appear as literals in the terragrunt live tree (tg-no-hardcoded-identity). Keyed by a stable caller-chosen label. Each value's account_id is the external account whose ROOT principal is granted read; the external role assumes within that account, so the account root is the correct stable cross-account grant shape (the specific role ARN need not be encoded here). Consumed by the data-lake service.hcl (the CrossAccountDataLakeKmsRead statement merged into lake_kms_policy_json) and the data-lake leaf terragrunt.hcl (the cross_account_read_principals input, which drives the module's S3 bucket policy). Applies to all envs (identical wiring). Empty principals => no grant.",
+  "principals": {
+    "bi": {
+      "account_id": "555555555555",
+      "description": "central data-lake / BI cross-account read. The BI team's reader role telemetry-datalake-reader-role assumes within this account to query the telemetry lake via its QuickSight/Athena."
+    }
+  }
+}

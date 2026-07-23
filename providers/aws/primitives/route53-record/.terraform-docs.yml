@@ -1,0 +1,67 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  ## Records XOR alias contract
+
+  This module accepts two mutually exclusive record shapes. Exactly one of
+  `records` or `alias` must be set; supplying both or neither is invalid and a
+  `lifecycle.precondition` fails the plan (fail-fast, no silent drop).
+
+  - **Static records path**: set `records` (list of values) and `ttl`. Used for
+    CNAME, TXT, MX, and other record types that carry static values. `alias`
+    must not be set.
+  - **Alias path**: set `alias` (object with `name`, `zone_id`,
+    `evaluate_target_health`). Used for A/AAAA records pointing at AWS-managed
+    targets such as CloudFront distributions, ELBs, and API Gateways. `records`
+    and `ttl` must not be set.
+
+  The `alias` input and the `records` input are mutually exclusive (records XOR
+  alias). The terraform-docs Inputs table below documents every input.
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

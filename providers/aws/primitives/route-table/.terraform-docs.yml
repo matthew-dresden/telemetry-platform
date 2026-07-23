@@ -1,0 +1,95 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # route-table
+
+  Manages route tables, their routes, and subnet associations within a VPC. This is a NEW-LOCAL primitive (decision D6) because the upstream `vpc` shell does not create route table resources.
+
+  ## Resources managed
+
+  - `aws_route_table` -- one per entry in the `route_tables` input list
+  - `aws_route` -- one per route in each route table's `routes` list
+  - `aws_route_table_association` -- one per (route_table, subnet_id) pair
+
+  ## Usage
+
+  ```hcl
+  module "route_table" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/route-table?ref=providers/aws/primitives/route-table/v0.1.0"
+
+    vpc_id = module.vpc.vpc_id
+    route_tables = [
+      {
+        name       = "private"
+        subnet_ids = module.subnet.subnet_ids_list
+        routes = [
+          {
+            destination_cidr_block = "0.0.0.0/0"
+            nat_gateway_id         = module.nat_gateway.nat_gateway_ids["nat-a"]
+          }
+        ]
+      }
+    ]
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/basic` -- 1 private route table with default route to a NAT gateway, 2 subnet associations
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `vpc_id` must match `^vpc-`. Plans fail if the pattern is not satisfied.
+  - `route_tables` must be non-empty. Plans fail with an empty list.
+  - Each route must specify exactly one of `gateway_id`, `nat_gateway_id`, or `vpc_endpoint_id`. Plans fail for zero or multiple targets.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

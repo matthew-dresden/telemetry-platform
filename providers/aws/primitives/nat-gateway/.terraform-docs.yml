@@ -1,0 +1,91 @@
+formatter: markdown table
+
+sections:
+  show:
+    - requirements
+    - providers
+    - modules
+    - resources
+    - inputs
+    - outputs
+
+content: |-
+  # nat-gateway
+
+  Manages a set of NAT gateways with their associated Elastic IPs across availability zones. This is a NEW-LOCAL primitive (decision D6) because the upstream `vpc` shell does not create NAT gateway or Elastic IP resources.
+
+  ## Resources managed
+
+  - `aws_eip` -- one per entry in the `nat_gateways` input list (for public NAT gateways)
+  - `aws_nat_gateway` -- one per entry in the `nat_gateways` input list
+
+  ## Usage
+
+  ```hcl
+  module "nat_gateway" {
+    source = "git::https://github.com/example-org/telemetry-platform.git//providers/aws/primitives/nat-gateway?ref=providers/aws/primitives/nat-gateway/v0.1.0"
+
+    nat_gateways = [
+      {
+        name             = "nat-a"
+        public_subnet_id = module.subnet.subnet_ids["public-a"]
+      },
+      {
+        name             = "nat-b"
+        public_subnet_id = module.subnet.subnet_ids["public-b"]
+      },
+    ]
+    tags = {
+      Environment = "prod"
+    }
+  }
+  ```
+
+  ## Examples
+
+  - `examples/basic` -- 1 public NAT gateway in 1 public subnet with a fixture VPC and IGW
+
+  {{ .Requirements }}
+
+  {{ .Providers }}
+
+  {{ .Modules }}
+
+  {{ .Resources }}
+
+  ## Inputs
+
+  {{ .Inputs }}
+
+  ## Outputs
+
+  {{ .Outputs }}
+
+  ## Input validation
+
+  - `nat_gateways` must be non-empty. Plans fail with an empty list.
+  - Every `connectivity_type` in `nat_gateways` must be either `"public"` or `"private"`. Plans fail on any other value.
+  - Every `public_subnet_id` in `nat_gateways` must start with `"subnet-"`. Plans fail if the pattern is not satisfied.
+
+output:
+  file: README.md
+  mode: replace
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+settings:
+  anchor: true
+  color: true
+  default: true
+  description: true
+  escape: true
+  hide-empty: false
+  html: true
+  indent: 2
+  lockfile: true
+  read-comments: true
+  required: true
+  sensitive: true
+  type: true

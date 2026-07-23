@@ -1,0 +1,11 @@
+# AWS-0104: Security group unrestricted egress
+# The ALB security group requires unrestricted egress so the load balancer can reach
+# registered targets in any subnet. Restricting egress would block health checks and
+# traffic forwarding to backend services.
+AWS-0104
+
+# AWS-0178: VPC Flow Logs not enabled
+# This finding applies only to example/fixture VPCs used in Terratest runs.
+# Fixture VPCs are ephemeral (created and destroyed per test run) and do not require
+# production-grade VPC Flow Log configuration.
+AWS-0178
