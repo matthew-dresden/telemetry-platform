@@ -58,18 +58,10 @@ jobs:
       modules: ${{ steps.detect.outputs.modules }}
       version_only: ${{ steps.detect.outputs.version_only }}
     steps:
-      - name: Generate GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b  # v2.0.6
-        with:
-          app-id: ${{ secrets.GH_APP_ID }}
-          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: ${{ github.event.repository.name }}
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v6.0.0
         with:
           fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: ./.github/actions/setup-tools
       # PR path: read the detect-scope-override label + author straight from the
       # pull_request event payload (fail-closed org-admin authorization).
@@ -77,7 +69,7 @@ jobs:
         id: override_pr
         if: ${{ github.event_name == 'pull_request' }}
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
         shell: bash
         run: >-
@@ -93,7 +85,7 @@ jobs:
         id: override_mq
         if: ${{ github.event_name == 'merge_group' }}
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
         run: >-
           make check-mq-scope-override

@@ -1,8 +1,15 @@
 name: Main Validation
 
+# DISABLED: the release lane commits, tags and pushes to the protected `main`
+# ref and drives a global branch lock, which needs the GH_APP_ID /
+# GH_APP_PRIVATE_KEY GitHub App credentials this repository does not have (the
+# built-in GITHUB_TOKEN cannot push to a protected branch). The push trigger is
+# commented out so merges to main do not fail; re-enable it once the App is
+# provisioned. See tracking issue.
 on:
-  push:
-    branches: [main]
+  # push:
+  #   branches: [main]
+  workflow_dispatch:
 
 # Release lane = a single repo-wide SERIALIZED FIFO QUEUE. The release job
 # commits + tags + pushes to the one `main` ref under a GLOBAL branch lock

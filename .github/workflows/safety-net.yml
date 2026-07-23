@@ -1,11 +1,16 @@
 name: Safety Net
 
+# DISABLED: releases the release-lane branch lock via the GitHub API using the
+# GH_APP_ID / GH_APP_PRIVATE_KEY App credentials this repository does not have.
+# It guards the Main Validation release lane, which is itself disabled, so the
+# schedule is commented out rather than firing every 5 minutes and failing.
+# Re-enable together with that lane. See tracking issue.
 on:
-  schedule:
-    # Run every 5 minutes to detect and release stale locks.
-    # The unlock script is fail-closed: it retains the lock if any release
-    # run is still active (B15, iac/03 section 4.9).
-    - cron: "*/5 * * * *"
+  # schedule:
+  #   # Run every 5 minutes to detect and release stale locks.
+  #   # The unlock script is fail-closed: it retains the lock if any release
+  #   # run is still active (B15, iac/03 section 4.9).
+  #   - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       reason:
