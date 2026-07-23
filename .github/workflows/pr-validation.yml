@@ -97,13 +97,30 @@ jobs:
       # empty string, so the `||` selects the resolved value. The diff range is robust on
       # both events: on merge_group, HEAD is the merge_group ref (latest main + the queued
       # PR), so origin/main...HEAD is exactly the PR's changes.
+      # The one-scope-per-PR rule (AC-15) exists so each module can be promoted
+      # and released independently. It cannot apply to the initial import, which
+      # necessarily adds every module at once. Detect that case -- the base
+      # branch holds no modules yet -- and take the existing scope override,
+      # which emits scope=all and validates every module (D43).
+      - name: Detect initial import
+        id: initial_import
+        shell: bash
+        run: |
+          if git ls-tree -d --name-only "origin/${{ github.base_ref || 'main' }}" -- providers 2>/dev/null | grep -q .; then
+            echo "scope_override=" >> "${GITHUB_OUTPUT}"
+          else
+            echo "Base branch contains no modules yet: treating this as the initial import."
+            echo "Taking scope=all so every module is validated."
+            echo "scope_override=true" >> "${GITHUB_OUTPUT}"
+          fi
+
       - name: Detect PR scope
         id: detect
         shell: bash
         run: >-
           make scope-detect
           DIFF_RANGE='origin/main...HEAD'
-          SCOPE_OVERRIDE='${{ steps.override_pr.outputs.scope_override || steps.override_mq.outputs.scope_override }}'
+          SCOPE_OVERRIDE='${{ steps.initial_import.outputs.scope_override || steps.override_pr.outputs.scope_override || steps.override_mq.outputs.scope_override }}'
           OUTPUT="${GITHUB_OUTPUT}"
   python-quality:
     name: python-quality

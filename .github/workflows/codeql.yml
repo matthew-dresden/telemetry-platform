@@ -18,10 +18,16 @@ name: CodeQL
 # jobs are intentionally NOT required directly, so adding/removing a language
 # never orphans a required check.
 #
-# build-mode: none for python + javascript-typescript (build-free extraction).
-# Go uses build-mode: autobuild because the CodeQL Go extractor does NOT support
-# build-mode none (it requires autobuild or manual); autobuild best-effort builds
-# the per-module go.mod packages and extracts what compiles.
+# build-mode: none for python (build-free extraction). Go uses build-mode:
+# autobuild because the CodeQL Go extractor does NOT support build-mode none
+# (it requires autobuild or manual); autobuild best-effort builds the per-module
+# go.mod packages and extracts what compiles.
+#
+# There is deliberately no javascript-typescript leg: this repository contains
+# no first-party JS/TS, and the extractor fails the run outright ("CodeQL could
+# not process any code written in JavaScript/TypeScript", exit 32) rather than
+# reporting an empty result. Re-add the leg if JS/TS is ever introduced --
+# per-language jobs are not required checks, so adding one orphans nothing.
 #
 # Action SHAs are pinned to a 40-char commit with a trailing version comment per
 # the actions-sha-pin-check gate.
@@ -50,8 +56,6 @@ jobs:
       matrix:
         include:
           - language: python
-            build-mode: none
-          - language: javascript-typescript
             build-mode: none
           - language: go
             build-mode: autobuild
