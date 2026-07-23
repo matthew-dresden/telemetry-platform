@@ -1,0 +1,16 @@
+name: "telemetry-platform CodeQL config"
+
+# Test code is excluded from analysis. These suites assert on rendered
+# infrastructure-as-code, on exception messages, and on mock call reprs -- e.g.
+# `assert "ecs-tasks.amazonaws.com" in service_hcl_content`. CodeQL's
+# py/incomplete-url-substring-sanitization rule reads those as URL-prefix
+# validation and reports them as high-severity findings, but nothing here parses
+# or authorizes a URL: the strings are expected values in assertions, and the
+# test code is never deployed.
+#
+# Production code under scripts/ is deliberately NOT excluded and remains fully
+# analysed. Real findings the scanner surfaced there have been fixed rather than
+# suppressed: the TLS probe now pins a TLS 1.2 floor, and OIDC provider ARNs are
+# matched on their host component instead of by substring.
+paths-ignore:
+  - tests

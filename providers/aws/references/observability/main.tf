@@ -61,7 +61,7 @@ module "cloudwatch" {
 # (docs/terragrunt-concepts.md).
 # ---------------------------------------------------------------------------
 module "budget" {
-  source = "git::https://github.com/matthew-dresden/terraform-modules.git//providers/aws/primitives/budget?ref=providers/aws/primitives/budget/v1.1.0"
+  source = "git::https://github.com/matthew-dresden/terraform-modules.git//providers/aws/primitives/budget?ref=providers/aws/primitives/budget/v0.1.0"
 
   budgets = {
     observability = {

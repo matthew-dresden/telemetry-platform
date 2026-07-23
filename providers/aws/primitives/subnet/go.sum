@@ -38,8 +38,8 @@ github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORN
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
-github.com/matthew-dresden/terraform-terratest-framework v1.0.0 h1:PgaH0+hI/yniaglxIZoh3miup7ZGTfJoicyBCeNXX3k=
-github.com/matthew-dresden/terraform-terratest-framework v1.0.0/go.mod h1:8V3bxGSPq5yPqxTb3eXkGz2efI+3FU78C+atSpQUyu4=
+github.com/matthew-dresden/terraform-terratest-framework v0.1.0 h1:a8wmYNAEt3tCd18hP28X9+nNtGQNH8WvZQ2QF8klRUE=
+github.com/matthew-dresden/terraform-terratest-framework v0.1.0/go.mod h1:8V3bxGSPq5yPqxTb3eXkGz2efI+3FU78C+atSpQUyu4=
 github.com/mattn/go-zglob v0.0.4 h1:LQi2iOm0/fGgu80AioIJ/1j9w9Oh+9DZ39J4VAGzHQM=
 github.com/mattn/go-zglob v0.0.4/go.mod h1:MxxjyoXXnMxfIpxTK2GAkw1w8glPsQILx3N5wrKakiY=
 github.com/mitchellh/go-homedir v1.1.0 h1:lukF9ziXFxDFPkA1vsr5zpc1XuPDn/wFntq5mG+4E0Y=

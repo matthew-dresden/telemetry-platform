@@ -71,7 +71,7 @@ Per docs/terragrunt-concepts.md, the following outputs are consumed by downstrea
 
 | Name | Source | Version |
 | ---- | ------ | ------- |
-| <a name="module_budget"></a> [budget](#module\_budget) | git::https://github.com/matthew-dresden/terraform-modules.git//providers/aws/primitives/budget | providers/aws/primitives/budget/v1.1.0 |
+| <a name="module_budget"></a> [budget](#module\_budget) | git::https://github.com/matthew-dresden/terraform-modules.git//providers/aws/primitives/budget | providers/aws/primitives/budget/v0.1.0 |
 | <a name="module_cloudwatch"></a> [cloudwatch](#module\_cloudwatch) | var.cloudwatch\_source | n/a |
 | <a name="module_cost_anomaly"></a> [cost\_anomaly](#module\_cost\_anomaly) | var.cost\_anomaly\_source | n/a |
 | <a name="module_sns_topic"></a> [sns\_topic](#module\_sns\_topic) | var.sns\_topic\_source | n/a |

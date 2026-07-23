@@ -82,7 +82,7 @@ def _make_valid_module(tmp_path: pathlib.Path, go_timeout: str = "10m") -> pathl
     (module_path / "go.mod").write_text(
         "module github.com/test/mod\n\n"
         "require (\n"
-        "    github.com/matthew-dresden/terraform-terratest-framework v1.0.0\n"
+        "    github.com/matthew-dresden/terraform-terratest-framework v0.1.0\n"
         ")\n"
     )
     # test.config
@@ -184,7 +184,7 @@ def test_module_path_missing_tests_dir_fails_fast(
     module_path.mkdir()
     (module_path / "go.mod").write_text(
         "module github.com/test/mod\n"
-        "require github.com/matthew-dresden/terraform-terratest-framework v1.0.0\n"
+        "require github.com/matthew-dresden/terraform-terratest-framework v0.1.0\n"
     )
     (module_path / "test.config").write_text("GO_TEST_TIMEOUT=5m\n")
     if "scripts.run_terratest" in sys.modules:
@@ -289,7 +289,7 @@ def test_missing_test_config_fails_fast(
     (module_path / "tests").mkdir()
     (module_path / "go.mod").write_text(
         "module github.com/test/mod\n"
-        "require github.com/matthew-dresden/terraform-terratest-framework v1.0.0\n"
+        "require github.com/matthew-dresden/terraform-terratest-framework v0.1.0\n"
     )
     # No test.config created
     if "scripts.run_terratest" in sys.modules:
@@ -2399,7 +2399,7 @@ def _make_suite_module(
     (mod_path / "go.mod").write_text(
         f"module github.com/test/{name}\n\n"
         "require (\n"
-        "    github.com/matthew-dresden/terraform-terratest-framework v1.0.0\n"
+        "    github.com/matthew-dresden/terraform-terratest-framework v0.1.0\n"
         ")\n"
     )
     (mod_path / "test.config").write_text("GO_TEST_TIMEOUT=10m\nTERRATEST_IDEMPOTENCY=true\n")
@@ -2442,7 +2442,7 @@ def test_discover_suite_modules_requires_both_tests_and_go_mod(
     no_tests.mkdir(parents=True)
     (no_tests / "go.mod").write_text(
         "module github.com/test/no-tests\n"
-        "require github.com/matthew-dresden/terraform-terratest-framework v1.0.0\n"
+        "require github.com/matthew-dresden/terraform-terratest-framework v0.1.0\n"
     )
 
     # Module with only tests/ (no go.mod)

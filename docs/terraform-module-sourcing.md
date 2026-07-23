@@ -145,7 +145,7 @@ literal exists in the references tree today:
 
 | Module | Location | Source |
 |--------|----------|--------|
-| `budget` | `providers/aws/references/observability/main.tf` | `git::https://github.com/matthew-dresden/terraform-modules.git//providers/aws/primitives/budget?ref=providers/aws/primitives/budget/v1.1.0` |
+| `budget` | `providers/aws/references/observability/main.tf` | `git::https://github.com/matthew-dresden/terraform-modules.git//providers/aws/primitives/budget?ref=providers/aws/primitives/budget/v0.1.0` |
 
 The const-source guard reserves two external-exempt module names — `budget` and `dynamodb-table` —
 that must stay hardcoded literals if present (no `dynamodb-table` block exists today). These names

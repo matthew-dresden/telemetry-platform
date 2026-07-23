@@ -249,6 +249,11 @@ def _default_tls_checker(fqdn: str, port: int = LIVE_VERIFY_HTTPS_PORT) -> tuple
     """
     try:
         ctx = ssl.create_default_context()
+        # Pin TLS 1.2 as the floor. The default context still permits TLS 1.0/1.1
+        # depending on the OpenSSL build, and this probe exists to assert the
+        # endpoint meets current transport policy -- accepting a deprecated
+        # protocol here would report a pass for a configuration we consider bad.
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
         with ctx.wrap_socket(
             socket.create_connection((fqdn, port), timeout=LIVE_VERIFY_NETWORK_TIMEOUT),
             server_hostname=fqdn,
@@ -645,8 +650,14 @@ class LiveVerify:
         iam = self._client("iam")
         providers = iam.list_open_id_connect_providers().get("OpenIDConnectProviderList", [])
 
+        # Match the ARN's provider-host component exactly rather than looking for
+        # the host anywhere in the string: an unrelated provider registered as
+        # e.g. `.../token.actions.githubusercontent.com.evil.test` would satisfy a
+        # substring test and be probed as if it were GitHub's.
         gh_provider_arns = [
-            p["Arn"] for p in providers if "token.actions.githubusercontent.com" in p["Arn"]
+            p["Arn"]
+            for p in providers
+            if p["Arn"].endswith("/token.actions.githubusercontent.com")
         ]
 
         probe_name = "oidc-provider:list-providers"

@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/gruntwork-io/terratest v0.49.0
-	github.com/matthew-dresden/terraform-terratest-framework v1.0.0
+	github.com/matthew-dresden/terraform-terratest-framework v0.1.0
 	github.com/stretchr/testify v1.10.0
 )
 

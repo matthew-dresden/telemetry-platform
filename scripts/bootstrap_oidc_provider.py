@@ -234,7 +234,11 @@ def _find_github_provider_arn(
     providers = iam_client.list_open_id_connect_providers().get("OpenIDConnectProviderList", [])
     for p in providers:
         arn: str = p.get("Arn", "")
-        if "token.actions.githubusercontent.com" in arn:
+        # Match the ARN's provider-host component exactly rather than looking for
+        # the host anywhere in the string: an unrelated provider registered as
+        # e.g. `.../token.actions.githubusercontent.com.evil.test` would satisfy a
+        # substring test and be returned as GitHub's provider.
+        if arn.endswith("/token.actions.githubusercontent.com"):
             return arn
     return None
 
